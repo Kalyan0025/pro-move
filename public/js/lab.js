@@ -93,9 +93,7 @@ export function createLab({ onTest, onRebuild, onCorrective, getStatus }) {
   }
   $('labToggle').addEventListener('click', () => setOpen(!document.body.classList.contains('lab-open')));
   $('labClose').addEventListener('click', () => setOpen(false));
-  let open = true;
-  try { open = localStorage.getItem('rig.labOpen') !== '0'; } catch {}
-  setOpen(open);
+  setOpen(false); // hidden in this build
 
   // ---- segmented skinning method ----
   for (const b of document.querySelectorAll('#labSkin button')) {

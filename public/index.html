@@ -5,13 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <title>Motion Rig · Build 9.2</title>
-  <link rel="icon" href="data:,">
+  <title>Motion Rig · Build 10</title>
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#1f1f21">
+  <meta name="apple-mobile-web-app-title" content="Pro Move">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="device" id="device">
-<span class="vol" style="top:120px"></span><span class="vol" style="top:182px"></span>
 <div class="screen" id="screen">
   <div class="home-indicator"></div>
   <!-- ============ Canvas (layers stack) ============ -->
@@ -36,6 +39,7 @@
     </div>
     <span class="topbar-handle">&middot;&middot;&middot;</span>
     <div class="topbar-right">
+      <button class="get-app hidden" id="btnGetApp" data-tip="Install Pro Move on this iPad as an app"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg>Get app</button>
       <button class="tb-icon tool active" data-tool="brush" aria-label="Paint" data-tip="Paint"><svg viewBox="0 0 24 24"><path d="M19.5 4.5 10 14l-.9 2.4L11.5 15.5 21 6z M8.2 15.8c-2.4.2-2.6 2.6-4.2 3.6 2.8.6 5.6-.2 5.6-2.4z"/></svg></button>
       <button class="tb-icon tool" data-tool="smudge" aria-label="Smudge" data-tip="Smudge"><svg viewBox="0 0 24 24"><path d="M9 3c.6 2.5-.2 4.2 1 6.5 1.2 2.3 3.6 2.6 3.2 6.3-.3 2.8-2.4 4.7-4.3 5.2.8-1.7.6-3.4-.6-4.8C6.6 14 6 11.4 7.1 8.4 7.8 6.5 8.8 5 9 3z"/></svg></button>
       <button class="tb-icon tool" data-tool="eraser" aria-label="Erase" data-tip="Erase"><svg viewBox="0 0 24 24"><path d="M14.5 4.5l5 5-8.5 8.5H6.5l-3-3z M9 10l5 5"/></svg></button>
@@ -393,11 +397,23 @@
 </div>
 
 
-<!-- ============ Rig Lab: prototyping panel beside the iPad ============ -->
+
+<div class="app-sheet hidden" id="appSheet" role="dialog" aria-label="Get the app">
+  <div class="as-card">
+    <b>Add Pro Move to your iPad</b>
+    <ol>
+      <li>Tap the <b>Share</b> button in Safari (the square with an arrow, top right).</li>
+      <li>Choose <b>Add to Home Screen</b>.</li>
+      <li>Tap <b>Add</b>. Pro Move opens full screen, like any app.</li>
+    </ol>
+    <button class="as-ok" id="appSheetOk">Got it</button>
+  </div>
+</div>
+<!-- ============ Rig Lab (hidden in this build) ============ -->
 <button class="lab-toggle" id="labToggle" title="Rig Lab">Rig Lab</button>
 <aside class="lab" id="lab" aria-label="Rig Lab">
   <header class="lab-head">
-    <span class="lab-title">Rig Lab <small style="font-weight:400;opacity:.6">Build 9.2</small></span>
+    <span class="lab-title">Rig Lab <small style="font-weight:400;opacity:.6">Build 10</small></span>
     <button class="lab-x" id="labClose" title="Close">&times;</button>
   </header>
   <p class="lab-status" id="labStatus"></p>
@@ -493,5 +509,6 @@
     // Live reload from the local dev server
     if (!/[?&](testpose|test)=/.test(location.search)) new EventSource('/__reload').onmessage = () => location.reload();
   </script>
+<script src="install.js"></script>
 </body>
 </html>

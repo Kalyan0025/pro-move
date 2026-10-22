@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "cert": "node scripts/make-cert.js"
+    "cert": "node scripts/make-cert.js",
+    "build": "node scripts/build.js"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "0.10.14",

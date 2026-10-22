@@ -61,12 +61,15 @@ function toast(msg, ms = 3000) {
 
 // ---------- device mockup: scale the iPad screen to fit the laptop window ----------
 function fitDevice() {
+  // Fill the window with the 1180 x 820 pt iPad screen (a real iPad is already this shape).
   const frameW = device.offsetWidth;
   const frameH = device.offsetHeight;
-  const room = innerWidth - (document.body.classList.contains('lab-open') ? 340 : 0);
-  const s = Math.min((room - 48) / frameW, (innerHeight - 48) / frameH, 1.4);
+  const vw = window.visualViewport?.width || innerWidth;
+  const vh = window.visualViewport?.height || innerHeight;
+  const s = Math.min(vw / frameW, vh / frameH);
   state.scale = s;
-  device.style.left = `${room / 2}px`;
+  device.style.left = `${vw / 2}px`;
+  device.style.top = `${vh / 2}px`;
   device.style.transform = `translate(-50%, -50%) scale(${s})`;
   const dpr = window.devicePixelRatio || 1;
   const ws = $('workspace');

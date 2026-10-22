@@ -228,3 +228,7 @@ The layout was rebuilt around the canvas. Nothing was removed; controls moved.
 
 ## Build 9.2
 - Camera button now uses the Gomma pinwheel mark (white; amber while Rig mode is on). No other changes.
+
+## Build 10
+- Opens straight on the iPad: no device frame, no Rig Lab tab. A "Get app" button (top right) installs it on the iPad home screen.
+- Vercel: `vercel.json` runs `scripts/build.js`, which gathers the app, models and MediaPipe files into `dist/`.

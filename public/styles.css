@@ -1004,3 +1004,25 @@ body.take-open .toast, body.anim .toast { bottom: calc(var(--film-h) + 14px); }
 #btnCam svg.cam-mark g[fill="none"] { stroke: currentColor; }
 #btnCam.active svg.cam-mark { stroke: none; color: #fff; }
 #btnCam.rig svg.cam-mark { color: #ffa20a; }
+
+/* ====================================================================
+   Build 10: opens straight on the iPad. No device frame, no Rig Lab, a "Get app" button.
+   ==================================================================== */
+html, body { background: #1f1f21; }
+.device { padding: 0; border-radius: 0; background: none; box-shadow: none; }
+.device::before, .device::after, .device .vol { display: none; }
+.screen { border-radius: 0; }
+.home-indicator { display: none; }
+.lab, .lab-toggle { display: none !important; }
+.get-app {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px 0 10px; margin-right: -6px;
+  border-radius: 15px; background: var(--accent-strong); color: #fff; font-size: 13.5px; font-weight: 600; position: relative;
+}
+.get-app svg { width: 16px; height: 16px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.get-app::after { content: ""; position: absolute; inset: -7px -4px; }
+.app-sheet { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(0, 0, 0, .45); }
+.as-card { width: 380px; padding: 22px 24px 18px; border-radius: 18px; background: var(--chrome-solid, #2a2a2d); color: var(--text); font-size: 15px; line-height: 1.45; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
+.as-card b:first-child { display: block; font-size: 18px; margin-bottom: 8px; }
+.as-card ol { margin: 0 0 16px; padding-left: 20px; }
+.as-card li { margin: 6px 0; }
+.as-ok { width: 100%; height: 44px; border-radius: 12px; background: var(--accent-strong); color: #fff; font-weight: 600; text-align: center; }
