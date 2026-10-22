@@ -1,0 +1,8 @@
+{
+  "buildCommand": "node scripts/build.js",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "headers": [
+    { "source": "/(.*)", "headers": [ { "key": "Permissions-Policy", "value": "camera=(self)" } ] }
+  ]
+}

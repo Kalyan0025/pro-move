@@ -33,6 +33,7 @@ const TYPES = {
   '.svg': 'image/svg+xml',
   '.task': 'application/octet-stream',
   '.map': 'application/json',
+  '.webmanifest': 'application/manifest+json',
 };
 
 const reloadClients = new Set();
