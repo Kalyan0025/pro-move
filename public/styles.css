@@ -92,7 +92,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 .topbar-left { display: flex; align-items: center; gap: 10px; }
 .topbar-right { display: flex; align-items: center; gap: 24px; }
-.topbar-handle { display: none; position: absolute; left: 50%; top: 3px; transform: translateX(-50%); color: var(--text-dim); font-size: 13px; letter-spacing: 2px; line-height: 1; }
+.topbar-handle { display: block; pointer-events: none; position: absolute; left: 50%; top: 3px; transform: translateX(-50%); color: var(--text-dim); font-size: 13px; letter-spacing: 2px; line-height: 1; }
 .tb-text { padding: 4px 10px 4px 0; font-size: 16px; color: var(--icon); }
 .tb-icon { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; }
 .topbar-left .tb-icon { background: var(--tool-circle); }
@@ -1122,3 +1122,18 @@ html, body { background: #1f1f21; }
 .sk-text b { font-size: 14px; }
 .sk-text small { font-size: 12px; color: var(--text-dim); }
 .sketch-bar .btn { flex: none; min-height: 44px; padding: 0 16px; white-space: nowrap; }
+
+/* ---------- Procreate-style glyphs: solid shapes, like the real interface (SF Symbols weight) ---------- */
+.topbar-left { --knock: var(--tool-circle); }
+.topbar-right { --knock: var(--chrome); }
+.tb-icon svg.glyph { fill: var(--icon); stroke: none; stroke-linecap: round; stroke-linejoin: round; }
+.topbar-left .tb-icon svg.glyph { width: 19px; height: 19px; }
+.topbar-right .tb-icon svg.glyph { width: 26px; height: 26px; }
+.tb-icon svg.glyph .st { fill: none; stroke: var(--icon); }
+.tb-icon svg.glyph .kn { fill: none; stroke: var(--knock); }
+.tb-icon svg.glyph .fr { fill: var(--icon); stroke: var(--knock); }
+.tb-icon.active svg.glyph { fill: var(--accent); stroke: none; }
+.tb-icon.active svg.glyph .st { stroke: var(--accent); }
+.tb-icon.active svg.glyph .fr { fill: var(--accent); }
+#btnActions.active svg.glyph { fill: #fff; }
+#btnActions.active svg.glyph .st { stroke: #fff; }
