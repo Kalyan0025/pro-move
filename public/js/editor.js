@@ -22,8 +22,29 @@ export function editJoints(image, { joints = null, face = null, autoDetect = tru
   src.getContext('2d').drawImage(image, 0, 0);
 
   return new Promise((resolve) => {
-    const s = ({ joints: joints ? structuredClone(joints) : templateJoints(src), face, drag: null, view: null });
+    const s = ({ joints: joints ? structuredClone(joints) : templateJoints(src), face, drag: null, view: null, phase: 'ready', t0: 0, raf: 0 });
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const title = $('jeTitle');
     sheet.classList.remove('hidden');
+
+    // While scanning, a light band sweeps down the drawing. Then the skeleton grows in joint by joint.
+    const STAGGER = 45, POP = 260;
+    const ease = (u) => 1 - Math.pow(1 - u, 3);
+    function animate() {
+      if (s.raf || s.closed) return;
+      const step = (now) => {
+        s.raf = 0;
+        if (s.closed) return;
+        draw(now);
+        const busy = s.phase === 'scan' || (s.phase === 'reveal' && now - s.t0 < ORDER.length * STAGGER + POP);
+        if (busy) s.raf = requestAnimationFrame(step);
+        else if (s.phase === 'reveal') {
+          s.phase = 'ready';
+          draw(now);
+        }
+      };
+      s.raf = requestAnimationFrame(step);
+    }
 
     function layout() {
       const box = $('jeStage').getBoundingClientRect();
@@ -39,17 +60,39 @@ export function editJoints(image, { joints = null, face = null, autoDetect = tru
       draw();
     }
 
-    function draw() {
+    function draw(now = performance.now()) {
       if (!s.view || s.closed) return; // not laid out yet, or already closed
       const { k, ox, oy, dpr } = s.view;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(src, ox, oy, src.width * k, src.height * k);
+      if (s.phase === 'scan') {
+        const h = src.height * k;
+        const y = oy + ((((now - s.t0) / 1500) % 1) * (h + 120 * dpr)) - 60 * dpr;
+        const g = ctx.createLinearGradient(0, y - 60 * dpr, 0, y + 60 * dpr);
+        g.addColorStop(0, 'rgba(30,139,255,0)');
+        g.addColorStop(0.5, 'rgba(30,139,255,.34)');
+        g.addColorStop(1, 'rgba(30,139,255,0)');
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(ox, oy, src.width * k, h);
+        ctx.clip();
+        ctx.fillStyle = g;
+        ctx.fillRect(ox, y - 60 * dpr, src.width * k, 120 * dpr);
+        ctx.fillStyle = 'rgba(30,139,255,.95)';
+        ctx.fillRect(ox, y - 1 * dpr, src.width * k, 2 * dpr);
+        ctx.restore();
+        return;
+      }
+      const grow = (n) => {
+        if (s.phase !== 'reveal' || reduced) return 1;
+        return ease(Math.max(0, Math.min(1, (now - s.t0 - ORDER.indexOf(n) * STAGGER) / POP)));
+      };
       const P = (n) => [ox + s.joints[n][0] * k, oy + s.joints[n][1] * k];
       ctx.lineWidth = 2.5 * dpr;
-      ctx.strokeStyle = 'rgba(30,139,255,.85)';
       for (const [a, b] of LINKS) {
         const [x1, y1] = P(a), [x2, y2] = P(b);
+        ctx.strokeStyle = `rgba(30,139,255,${0.85 * Math.min(grow(a), grow(b))})`;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
@@ -58,9 +101,12 @@ export function editJoints(image, { joints = null, face = null, autoDetect = tru
       ctx.font = `${11 * dpr}px -apple-system, system-ui, sans-serif`;
       for (const n of ORDER) {
         const [x, y] = P(n);
+        const gr = grow(n);
+        if (gr <= 0) continue;
+        ctx.globalAlpha = gr;
         ctx.fillStyle = s.drag === n ? '#0a6fe0' : '#1e8bff';
         ctx.beginPath();
-        ctx.arc(x, y, 7 * dpr, 0, Math.PI * 2);
+        ctx.arc(x, y, 7 * dpr * (0.4 + 0.6 * gr), 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 2 * dpr;
@@ -69,6 +115,7 @@ export function editJoints(image, { joints = null, face = null, autoDetect = tru
         ctx.fillStyle = '#0a5fc2';
         ctx.textAlign = side < 0 ? 'right' : 'left';
         ctx.fillText(LABEL[n], x + side * 12 * dpr, y + 4 * dpr);
+        ctx.globalAlpha = 1;
       }
     }
 
@@ -79,6 +126,7 @@ export function editJoints(image, { joints = null, face = null, autoDetect = tru
       return { x, y, ix: (x - s.view.ox) / s.view.k, iy: (y - s.view.oy) / s.view.k };
     };
     const onDown = (e) => {
+      if (s.phase === 'scan') return;
       const p = toImage(e);
       let best = null, bestD = 22 * s.view.dpr;
       for (const n of ORDER) {
@@ -105,25 +153,37 @@ export function editJoints(image, { joints = null, face = null, autoDetect = tru
     };
 
     async function detect() {
+      s.phase = 'scan';
+      s.t0 = performance.now();
+      title.textContent = 'Scanning your character…';
       $('jeStatus').textContent = 'Looking for a body in the drawing…';
+      animate();
+      let msg;
       try {
-        const r = await detectJoints(src);
+        // Hold the scan long enough to be seen, even when detection is instant.
+        const [r] = await Promise.all([detectJoints(src), new Promise((ok) => setTimeout(ok, reduced ? 0 : 1500))]);
         if (s.closed) return;
         s.joints = r.joints;
         s.face = r.face;
-        $('jeStatus').textContent = r.detected
-          ? 'Joints found. Drag any that are off.'
-          : "Couldn't find a body, so joints were placed from a template. Drag them into place.";
+        msg = r.detected
+          ? 'Skeleton placed. Drag any dot that is off, then tap Build character.'
+          : "Couldn't find a body, so a template skeleton was placed. Drag the dots onto your drawing.";
       } catch (err) {
         console.error(err);
-        $('jeStatus').textContent = "Detection failed, so a template was used. Drag the joints into place.";
+        if (s.closed) return;
+        msg = 'Detection failed, so a template was used. Drag the joints into place.';
         s.joints = templateJoints(src);
       }
-      draw();
+      title.textContent = 'Skeleton placed';
+      $('jeStatus').textContent = msg;
+      s.phase = 'reveal';
+      s.t0 = performance.now();
+      animate();
     }
 
     function close(result) {
       s.closed = true;
+      cancelAnimationFrame(s.raf);
       sheet.classList.add('hidden');
       canvas.removeEventListener('pointerdown', onDown);
       canvas.removeEventListener('pointermove', onMove);
@@ -144,8 +204,9 @@ export function editJoints(image, { joints = null, face = null, autoDetect = tru
       draw();
     };
     $('jeCancel').onclick = () => close(null);
-    $('jeDone').onclick = () => close({ joints: s.joints, face: s.face });
+    $('jeDone').onclick = () => s.phase !== 'scan' && close({ joints: s.joints, face: s.face });
     $('jeStatus').textContent = '';
+    title.textContent = 'Place the joints';
     requestAnimationFrame(layout);
     if (autoDetect) detect();
   });

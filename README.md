@@ -232,3 +232,13 @@ The layout was rebuilt around the canvas. Nothing was removed; controls moved.
 ## Build 10
 - Opens straight on the iPad: no device frame, no Rig Lab tab. A "Get app" button (top right) installs it on the iPad home screen.
 - Vercel: `vercel.json` runs `scripts/build.js`, which gathers the app, models and MediaPipe files into `dist/`.
+
+## Build 11: start from your own character, with a 15-second welcome
+- **Welcome tour.** On first launch the normal canvas opens, then a short tour (about 11 seconds, tap or Skip to move on) shows the flow with the app's own screens: bring a character, we scan it and add the skeleton, then move and it moves with you. It ends with the choice below. **Actions › Help › Replay the 15-second intro** shows it again.
+- **New character** (person-plus button, top bar; also **Actions › Rig › Character**):
+  - **Upload a drawing**: PNG, JPG, SVG or PSD. A plain PSD (for example a Procreate export) is flattened and rigged; a PSD with layers named Head, Torso, Upper arm R/L and so on keeps its parts. `.procreate` files can't be opened directly; use Share › PNG or PSD in Procreate.
+  - **Sketch your own**: Layer 1 becomes a blank page with a faint pose guide. Draw with the normal brush, tap **Done: build my rig**. The sketch becomes the character and Layer 1 is blank again.
+  - **Try the red beanie**: the sample character.
+- **Scan and skeleton.** After a drawing arrives, a scan line sweeps down it, then the skeleton grows in joint by joint (from the pose model, or a template if no body is found). Drag any dot that is off, then **Build character**. The capture bar opens so the next step is to capture.
+
+Code: `public/js/onboarding.js` (tour and chooser), `public/js/editor.js` (scan and skeleton), `public/js/main.js` (upload, SVG and PSD handling, sketch mode). Tour pictures are in `public/onboarding/`.

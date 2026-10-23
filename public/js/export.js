@@ -133,6 +133,26 @@ export function readLayeredPSD(buffer) {
   return { width: psd.width, height: psd.height, layers, flat };
 }
 
+// Any PSD (for example a Procreate export), flattened to one canvas: the stored composite,
+// or the visible layers drawn on top of each other when the file has none.
+export function readFlatPSD(buffer) {
+  const psd = window.agPsd.readPsd(buffer, { skipThumbnail: true });
+  if (psd.canvas) return psd.canvas;
+  const flat = document.createElement('canvas');
+  flat.width = psd.width;
+  flat.height = psd.height;
+  const f = flat.getContext('2d');
+  const walk = (list) => {
+    for (const l of [...(list || [])].reverse()) {
+      if (l.hidden) continue;
+      if (l.children) walk(l.children);
+      else if (l.canvas) f.drawImage(l.canvas, l.left || 0, l.top || 0);
+    }
+  };
+  walk(psd.children);
+  return flat;
+}
+
 export function downloadBlob(blob, name) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
