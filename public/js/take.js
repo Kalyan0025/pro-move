@@ -15,6 +15,7 @@ const RATE = 30; // samples per second while recording
 const MAX_SECONDS = 10;
 const MIN_SECONDS = 1;
 const FLOAT_LAG = 0.16; // seconds a "floaty" part trails behind
+const SETTLE = 0.45; // seconds the one-time replay takes to ease back to the first drawing
 const BONES = ['spine', 'neck', 'shoulders', 'hips', 'upperArmR', 'foreArmR', 'upperArmL', 'foreArmL', 'thighR', 'shinR', 'thighL', 'shinL'];
 
 // ---------- the part tree ----------
@@ -571,6 +572,7 @@ export function createTakes({ rig, toast, renderPose, pointsFor, isLive, onOpenC
   let pathOn = false; // dotted path of the selected part on the canvas
   let original = false; // holding the Original button
   let playOnce = false; // replay a fresh take once
+  let settleFrom = null; // pose the replay was in when it ended, eased back to the first drawing
   let pathCache = null;
   let lastCtx = null;
 
@@ -1812,12 +1814,19 @@ export function createTakes({ rig, toast, renderPose, pointsFor, isLive, onOpenC
           for (const el of film.querySelectorAll('[data-frame]')) el.classList.toggle('playing-now', Number(el.dataset.frame) === i);
         }
         if (playOnce && time >= totalTime(t)) {
+          // Ease back to the first drawing instead of snapping (floaty parts are still trailing).
+          const rest = posesFor(t, original ? 'before' : 'after')[0];
+          const k = (time - totalTime(t)) / SETTLE;
+          settleFrom = settleFrom || poseAtTime(t, totalTime(t) - 1e-3, original ? 'before' : 'after');
+          if (k < 1) return { pose: lerpPose(settleFrom, rest, easeInOut(k)) };
+          settleFrom = null;
           playOnce = false;
           playing = false;
           t.current = 0;
           renderPanel();
-          return { pose: posesFor(t, 'after')[0] };
+          return { pose: rest };
         }
+        settleFrom = null;
         return { pose: poseAtTime(t, time, original ? 'before' : 'after') };
       }
       if (original) return { pose: posesFor(t, 'before')[t.current] };
