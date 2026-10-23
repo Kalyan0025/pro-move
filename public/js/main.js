@@ -20,6 +20,7 @@ import { demoFrame } from './demo.js';
 import { Painter } from './paint.js';
 import { createTakes } from './take.js';
 import { createJointBalls } from './joints.js';
+import { createJointDust } from './dust.js';
 import { createTips, createHints } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
@@ -90,7 +91,7 @@ function toScreen(e) {
 }
 
 // ---------- persistent settings (survive live reload) ----------
-const SETTINGS = ['prefLight', 'prefRightHand', 'prefCursor', 'prefSidebar', 'prefReference', 'optShow', 'optBody', 'optFace', 'optMirror', 'optSkeleton', 'optLegRest', 'optMesh', 'optWeights', 'optCloth', 'prefAnim', 'optHold', 'holdTime', 'optCorrect', 'smoothing', 'bounce', 'follow', 'charScale', 'brushSize', 'brushOpacity'];
+const SETTINGS = ['prefLight', 'prefRightHand', 'prefCursor', 'prefSidebar', 'prefReference', 'optShow', 'optBody', 'optFace', 'optMirror', 'optSkeleton', 'optLegRest', 'optMesh', 'optWeights', 'optCloth', 'prefAnim', 'optHold', 'holdTime', 'optCorrect', 'optDust', 'dustDensity', 'dustSize', 'smoothing', 'bounce', 'follow', 'charScale', 'brushSize', 'brushOpacity'];
 try {
   const saved = JSON.parse(localStorage.getItem('rig.settings') || '{}');
   for (const id of SETTINGS) {
@@ -127,6 +128,8 @@ function applyPrefs() {
     const f = FEELS[b.dataset.feel];
     b.classList.toggle('active', Math.abs(f.smooth - $('smoothing').value) < 0.02 && Math.abs(f.bounce - $('bounce').value) < 0.02 && Math.abs(f.follow - $('follow').value) < 0.02);
   }
+  $('dustDensityOut').textContent = `${Math.round($('dustDensity').value * 100)}%`;
+  $('dustSizeOut').textContent = `${Math.round($('dustSize').value * 100)}%`;
   $('holdTimeOut').textContent = `${Number($('holdTime').value).toFixed(1)}s`;
   $('charScaleOut').textContent = `${Math.round($('charScale').value * 100)}%`;
 }
@@ -670,6 +673,7 @@ function viewForYaw(yaw, invert) {
 }
 const correctives = createCorrectives();
 const jointBalls = createJointBalls();
+const jointDust = createJointDust(jointBalls);
 const sources = {}; // key → { def, img }, kept for rebuilding
 const overlapOn = () => document.getElementById('labOverlap')?.checked !== false;
 
@@ -1063,6 +1067,10 @@ function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = 
     if (alpha === 1 && view.id === 'front' && $('optCorrect').checked) correctives.draw(target, rig, P);
     // Round, colour-matched joints that fade in as a joint bends or stretches.
     if ($('labBalls')?.checked !== false) jointBalls.draw(target, p, rig, P, { alpha, flip: view.flip });
+    // Optional: tiny dots in the character's own colours fill bent joints (off unless switched on).
+    if ($('optDust').checked) {
+      jointDust.draw(target, p, rig, P, { alpha, flip: view.flip, density: Number($('dustDensity').value), size: Number($('dustSize').value), time: performance.now() / 1000 });
+    }
     return P;
   }
   if (basicCanvas.width !== W || basicCanvas.height !== H) {

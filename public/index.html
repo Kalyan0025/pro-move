@@ -226,6 +226,12 @@
           <label class="row hidden" id="rowCustom"><span id="customName">My drawing</span><input type="radio" name="charChoice" value="custom" class="radio"></label>
           <label class="row">Basic figure<input type="radio" name="charChoice" value="basic" class="radio"></label>
         </div>
+        <div class="group-title">Joint dust</div>
+        <div class="group">
+          <label class="row">Joint dust<small>tiny dots in your colours fill bent joints</small><input type="checkbox" class="switch" id="optDust"></label>
+          <div class="row slider-row"><span>Density</span><output id="dustDensityOut"></output><input type="range" id="dustDensity" min="0.4" max="1.6" step="0.05" value="1"></div>
+          <div class="row slider-row"><span>Dot size</span><output id="dustSizeOut"></output><input type="range" id="dustSize" min="0.6" max="2" step="0.05" value="1"></div>
+        </div>
         <div class="group">
           <label class="row link">New character from a drawing…<small>PNG, SVG, PSD</small><input type="file" accept="image/*,.svg,.psd,.procreate,image/vnd.adobe.photoshop" id="newCharFile" class="file-hit"></label>
           <button class="row link" id="btnSketchChar">Sketch a new character<small>draw it here</small></button>
