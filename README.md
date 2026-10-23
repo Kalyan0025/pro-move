@@ -242,3 +242,6 @@ The layout was rebuilt around the canvas. Nothing was removed; controls moved.
 - **Scan and skeleton.** After a drawing arrives, a scan line sweeps down it, then the skeleton grows in joint by joint (from the pose model, or a template if no body is found). Drag any dot that is off, then **Build character**. The capture bar opens so the next step is to capture.
 
 Code: `public/js/onboarding.js` (tour and chooser), `public/js/editor.js` (scan and skeleton), `public/js/main.js` (upload, SVG and PSD handling, sketch mode). Tour pictures are in `public/onboarding/`.
+
+## Joint dust (optional)
+**Actions › Rig › Character › Joint dust** (off by default). When a joint bends far enough to open a break, a dense cloud of very small dots in the colours used around that joint fills it, then fades as the joint straightens. **Density** sets how packed the cloud is; **Dot size** keeps the dots tiny by default. It works best on flat or textured art. Code: `public/js/dust.js` (reads each joint's colours from `joints.js`).
