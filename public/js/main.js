@@ -1,7 +1,8 @@
 import { Rig, jointAngles, drawSkeleton } from './rig.js';
 import { buildPuppet, drawPuppet, createRenderer } from './puppet.js';
 import { drawDoodle } from './doodle.js';
-import { layeredSVG, layeredPSD, readLayeredPSD, downloadBlob, PART_LABELS } from './export.js';
+import { layeredSVG, layeredPSD, readLayeredPSD, readFlatPSD, downloadBlob, PART_LABELS } from './export.js';
+import { createOnboarding } from './onboarding.js';
 import { editJoints } from './editor.js';
 import { createTimeline } from './timeline.js';
 import { gapRegions } from './comfy.js';
@@ -769,35 +770,70 @@ async function drawingToCanvas(file) {
   return c;
 }
 
-$('newCharFile').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (!file) return;
-  closePopovers();
-  const canvas = await drawingToCanvas(file);
+// ---------- start a character: upload (PNG, JPG, SVG, PSD) or sketch your own ----------
+// An SVG is drawn at a fixed size, whatever its own width and height say.
+async function svgToCanvas(file) {
+  const svg = new DOMParser().parseFromString(await file.text(), 'image/svg+xml').documentElement;
+  if (svg.nodeName.toLowerCase() !== 'svg') throw new Error('not an svg');
+  const num = (v) => (v && !v.includes('%') ? parseFloat(v) : NaN);
+  const vb = (svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+  let w = num(svg.getAttribute('width')), h = num(svg.getAttribute('height'));
+  if (!(w > 0 && h > 0)) [w, h] = vb.length === 4 && vb[2] > 0 && vb[3] > 0 ? [vb[2], vb[3]] : [1000, 1400];
+  if (vb.length !== 4 || !(vb[2] > 0)) svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const k = 1400 / Math.max(w, h);
+  svg.setAttribute('width', String(Math.round(w * k)));
+  svg.setAttribute('height', String(Math.round(h * k)));
+  const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' }));
+  try {
+    const img = await imageFromSrc(url);
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * k);
+    c.height = Math.round(h * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    clearOuterWhite(c);
+    return c;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// Scan the drawing, place the skeleton (the joint editor shows it and lets you nudge it), then build.
+// Resolves true when a character was built, false if the person backed out.
+async function buildCharacter(canvas, { name, layers = null }) {
   const placed = await editJoints(canvas, { autoDetect: true });
-  if (!placed) return;
-  const def = { name: file.name.replace(/\.[^.]+$/, '') || 'My drawing', joints: placed.joints, face: placed.face };
+  if (!placed) return false;
+  const def = { name: name || 'My drawing', joints: placed.joints, face: placed.face };
+  if (layers) def.layers = layers;
   showCustom(buildPuppet(def, canvas));
   saveCustom(def, canvas);
   selectCharacter('custom');
-  toast('Character built from your drawing.');
-});
+  // The capture bar says what to do next; a toast would sit on top of it.
+  if (takes.camOpen) toast('Your character is rigged.');
+  else takes.toggleCamera();
+  return true;
+}
 
-$('importPsd').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (!file) return;
-  closePopovers();
-  let psd;
+async function importPsdFile(file) {
+  let psd, flat;
+  const buf = await file.arrayBuffer();
   try {
-    psd = readLayeredPSD(await file.arrayBuffer());
+    psd = readLayeredPSD(buf);
   } catch (err) {
     console.error(err);
     return toast("Couldn't read that PSD.");
   }
+  const name = file.name.replace(/\.[^.]+$/, '');
   if (!psd.layers.length) {
-    return toast(`No body-part layers found. Name layers like: ${Object.values(PART_LABELS).join(', ')}.`, 7000);
+    // Not prepared with body-part layers (a plain Procreate export): rig the flattened drawing.
+    try { flat = readFlatPSD(buf); } catch { flat = null; }
+    if (!flat) return toast(`No body-part layers found. Name layers like: ${Object.values(PART_LABELS).join(', ')}.`, 7000);
+    const k = Math.min(1, 1400 / flat.height, 1400 / flat.width);
+    const c = document.createElement('canvas');
+    c.width = Math.round(flat.width * k);
+    c.height = Math.round(flat.height * k);
+    c.getContext('2d').drawImage(flat, 0, 0, c.width, c.height);
+    clearOuterWhite(c);
+    return buildCharacter(c, { name });
   }
   // Same canvas size as the current character: keep its joints. Otherwise place them.
   const current = activePuppet();
@@ -805,14 +841,139 @@ $('importPsd').addEventListener('change', async (e) => {
   let face = current && joints ? current.face : null;
   const placed = await editJoints(psd.flat, { joints, face, autoDetect: !joints });
   if (!placed) return;
-  joints = placed.joints;
-  face = placed.face;
-  const def = { name: file.name.replace(/\.[^.]+$/, ''), joints, face, layers: psd.layers };
+  const def = { name, joints: placed.joints, face: placed.face, layers: psd.layers };
   showCustom(buildPuppet(def, psd.flat));
   saveCustom(def, psd.flat);
   selectCharacter('custom');
   toast(`Imported ${psd.layers.length} part layers.`);
+}
+
+async function startFromFile(file) {
+  closePopovers();
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (ext === 'procreate') {
+    return toast('Procreate files can not be opened directly. In Procreate choose Share, then PNG or PSD, and pick that file here.', 8000);
+  }
+  try {
+    if (ext === 'psd' || file.type === 'image/vnd.adobe.photoshop') return await importPsdFile(file);
+    const isSvg = ext === 'svg' || file.type === 'image/svg+xml';
+    const canvas = isSvg ? await svgToCanvas(file) : await drawingToCanvas(file);
+    await buildCharacter(canvas, { name: file.name.replace(/\.[^.]+$/, '') });
+  } catch (err) {
+    console.error(err);
+    toast("Couldn't open that file. Try a PNG, SVG or PSD.");
+  }
+}
+$('newCharFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (file) startFromFile(file);
 });
+$('importPsd').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (file) startFromFile(file);
+});
+
+// Sketch your own: Layer 1 becomes a blank page (the live character steps aside), a faint
+// guide shows a good pose, and Done turns the drawing into a character.
+const sketch = { on: false, rigWas: true };
+function startSketch() {
+  closePopovers();
+  if (sketch.on) return;
+  sketch.on = true;
+  sketch.rigWas = $('layerRig').checked;
+  $('layerRig').checked = false;
+  $('layerRig').dispatchEvent(new Event('input'));
+  if (!$('layerPaint').checked) {
+    $('layerPaint').checked = true;
+    $('layerPaint').dispatchEvent(new Event('input'));
+  }
+  document.querySelector('.tool[data-tool="brush"]')?.click();
+  painter.clear();
+  if (takes.camOpen) takes.toggleCamera();
+  $('sketchGuide').classList.remove('hidden');
+  $('sketchBar').classList.remove('hidden');
+  document.body.classList.add('sketching');
+}
+function endSketch({ restoreRig = true } = {}) {
+  sketch.on = false;
+  $('sketchGuide').classList.add('hidden');
+  $('sketchBar').classList.add('hidden');
+  document.body.classList.remove('sketching');
+  if (restoreRig) {
+    $('layerRig').checked = true;
+    $('layerRig').dispatchEvent(new Event('input'));
+  }
+}
+// The drawn pixels, cropped to what was drawn and scaled to the size the rest of the app expects.
+function sketchToCanvas() {
+  const { width: W, height: H } = paintCanvas;
+  const d = paintCanvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, H).data;
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (d[(y * W + x) * 4 + 3] > 8) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) return null;
+  const pad = Math.round(Math.max(x1 - x0, y1 - y0) * 0.05) + 8;
+  x0 = Math.max(0, x0 - pad);
+  y0 = Math.max(0, y0 - pad);
+  x1 = Math.min(W - 1, x1 + pad);
+  y1 = Math.min(H - 1, y1 + pad);
+  const w = x1 - x0 + 1, h = y1 - y0 + 1;
+  const k = Math.min(1, 1400 / w, 1400 / h);
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * k);
+  c.height = Math.round(h * k);
+  const g = c.getContext('2d');
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(paintCanvas, x0, y0, w, h, 0, 0, c.width, c.height);
+  return c;
+}
+$('sketchDone').addEventListener('click', async () => {
+  const c = sketchToCanvas();
+  if (!c) return toast('Draw your character first, then tap Done.');
+  $('sketchBar').classList.add('hidden');
+  $('sketchGuide').classList.add('hidden');
+  const built = await buildCharacter(c, { name: 'My sketch' });
+  if (built) {
+    painter.clear(); // the sketch is now the character; Layer 1 is a blank page again
+    endSketch();
+  } else {
+    $('sketchBar').classList.remove('hidden'); // backed out of the joints: keep sketching
+    $('sketchGuide').classList.remove('hidden');
+  }
+});
+$('sketchCancel').addEventListener('click', () => {
+  endSketch({ restoreRig: sketch.rigWas });
+});
+$('btnSketchChar').addEventListener('click', startSketch);
+
+// Welcome tour and the "New character" chooser.
+const onboarding = createOnboarding({
+  onFile: startFromFile,
+  onSketch: startSketch,
+  onSample: () => {
+    selectCharacter('redcap');
+    if (!takes.camOpen) takes.toggleCamera();
+  },
+});
+$('btnNewChar').addEventListener('click', () => {
+  closePopovers();
+  onboarding.open({ tour: false });
+});
+$('btnIntro').addEventListener('click', () => {
+  closePopovers();
+  onboarding.open({ tour: true });
+});
+onboarding.maybeShow();
 
 $('btnEditJoints').addEventListener('click', async () => {
   const p = activePuppet();
