@@ -252,3 +252,6 @@ The AI step is never automatic. The rig check no longer opens by itself when the
 - **Fix:** the fewest drawings that cover all the red and yellow breaks are sent to ComfyUI, one at a time. A turning ring and drifting dots mark each break being worked on, and a green tick shows it mended. **Stop** keeps the repairs already made.
 - The repairs are saved as joint fixes and blend in as the take plays (**Use AI joint fixes** switches them off). If ComfyUI isn't running, the card says so and nothing else happens.
 Code: `public/js/aifix.js`.
+
+## Joint dust (optional)
+**Actions › Rig › Character › Joint dust** (off by default). When a joint bends far enough to open a break, a dense cloud of very small dots in the colours used around that joint fills it, then fades as the joint straightens. **Density** sets how packed the cloud is; **Dot size** keeps the dots tiny by default. It works best on flat or textured art. Code: `public/js/dust.js` (reads each joint's colours from `joints.js`).

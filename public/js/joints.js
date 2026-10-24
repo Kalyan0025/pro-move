@@ -91,8 +91,12 @@ export function createJointBalls() {
         }
       }
       if (rs.length < 6) continue;
+      // The colours actually used around the joint, for effects that scatter paint (joint dust).
+      const pal = [];
+      const step = Math.max(1, Math.floor(rs.length / 48));
+      for (let i = 0; i < rs.length; i += step) pal.push([rs[i], gs[i], bs[i]]);
       const med = (v) => v.sort((x, y) => x - y)[v.length >> 1];
-      out.push({ joint, parent, child, tip, r, off: (a - b) / 2, rgb: [med(rs), med(gs), med(bs)] });
+      out.push({ joint, parent, child, tip, r, off: (a - b) / 2, rgb: [med(rs), med(gs), med(bs)], pal });
     }
     samples.set(p, out);
     return out;
