@@ -271,3 +271,14 @@ The Procreate-style canvas now works the way the real one does. The Motion Rig i
 - **Gestures**: pinch to zoom and pan (Ctrl + wheel on a laptop), two-finger tap undo, three-finger tap redo, four-finger tap hides the interface, touch and hold picks a colour.
 
 Code: `studio.js` (layers, history, saving), `paint.js` + `brushes.js` (brush engine), `layersui.js`, `brushui.js`, `colourui.js`, `gallery.js`, `select.js`, `layerxform.js`, `adjust.js`, `anim.js`, `actionsui.js`, `gestures.js`, `exporters.js`, `store.js`.
+
+## Character physics (Actions › Rig › Physics)
+Five sliders and four presets (Natural, Cartoon, Soft body, Rigid) drive the motion engine, with a graph of how the body and the forearm settle and **Copy physics configuration**. The engine behind them:
+- **Springs at a fixed 120 Hz** for the skeleton (critically damped, so no wobble), with **follow-through that can swing past and settle** (an underdamped spring on forearms, shins and the head) when Follow-through is above 50%. Each region has its own speed: the head trails more than the forearms.
+- **XPBD cloth** (`cloth.js`): the jacket hem and cuffs are held to the skinned shape by soft constraints and to their neighbours by distance constraints, so loose cloth swings as one piece and does not stretch.
+- **Shape preservation**: the Delta Mush skinning (a real-time cousin of as-rigid-as-possible deformation) now has an amount, and a foreshortened limb gets a little fatter (**volume**), so arms do not thin out or collapse.
+- **Squash & stretch**: the live body stretches when it moves fast up or down and squashes on landing, with its area kept (wider when shorter).
+- **Ground contact**: feet cannot sink below the floor, and a planted foot stays put instead of sliding.
+- **Joint limits**: elbows, knees and the head fold only so far, easing into the limit.
+- **Confidence-weighted smoothing**: a joint the tracker is unsure of is smoothed harder.
+Physics changes what is drawn live. Recorded takes, thumbnails and exports keep the rig's own pose. Not built: self-collision between limbs and body, hair, and learned texture repair in the live loop.

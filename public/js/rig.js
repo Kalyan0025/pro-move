@@ -1,6 +1,6 @@
 // 2D character rig. Tracked joints give each bone an angle (and a foreshortening ratio);
 // the character keeps its own proportions and is rebuilt with forward kinematics.
-import { MotionSystem } from './motion.js';
+import { MotionSystem, limitJoints } from './motion.js';
 
 const PI = Math.PI;
 
@@ -117,6 +117,8 @@ export class Rig {
       targets[name] = target;
       ratios[name] = ratio;
     }
+    // Joints fold only so far (elbows, knees, head), before the springs see the targets.
+    if (opts.limits != null) limitJoints(targets, opts.limits);
     const sprung = m.step(targets, ratios, feel);
     Object.assign(this.angle, sprung.angles);
     Object.assign(this.ratio, sprung.ratios);
@@ -144,6 +146,15 @@ export class Rig {
         this.face[k] = k === 'roll' ? v : Math.max(0, Math.min(1, v));
       }
     }
+  }
+
+  // The same forward kinematics in torso lengths with the pelvis at the origin of x, for physics that
+  // needs feet and ground without caring about the canvas size. Leaves the drawn points alone.
+  solveUnits() {
+    const keep = this.points;
+    const P = this.solve(1, 1 / 0.19, 1, null);
+    this.points = keep;
+    return P;
   }
 
   // Forward kinematics into stage pixels.

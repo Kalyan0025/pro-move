@@ -34,11 +34,14 @@ export class JointFilter {
   // smoothing 0..1 (the Smoothing slider): higher holds steadier.
   filter(joints, t, smoothing) {
     if (!joints) return joints;
-    const minCutoff = 3.2 - smoothing * 3; // Hz
+    const base = 3.2 - smoothing * 3; // Hz
     const beta = 1.6;
     const out = {};
     for (const [name, j] of Object.entries(joints)) {
       const f = this.f[name] || (this.f[name] = { x: new OneEuro(), y: new OneEuro() });
+      // A joint the model is unsure of (low visibility) is smoothed harder, so a bad guess drifts instead of jumping.
+      const conf = Math.max(0.15, Math.min(1, j.v ?? 1));
+      const minCutoff = base * (0.35 + 0.65 * conf);
       out[name] = { x: f.x.filter(j.x, t, minCutoff, beta), y: f.y.filter(j.y, t, minCutoff, beta), v: j.v };
     }
     return out;

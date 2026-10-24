@@ -613,11 +613,14 @@ export function boneMatrices(puppet, rig, P) {
   const J = puppet.joints;
   const S = P.T / puppet.torso;
   const m = new Array(BONES.length);
+  // Volume preservation: a limb that is squeezed shorter (foreshortened) gets a little fatter, and one that
+  // is stretched a little thinner, so its area stays about the same. rig.volume is 0 (off) .. 1.
+  const vol = rig.volume || 0;
   const make = (bone, anchor, at, angle, stretch) =>
     new DOMMatrix()
       .translate(at.x, at.y)
       .rotate(angle * DEG)
-      .scale(S * stretch, S)
+      .scale(S * stretch, S * (vol && stretch !== 1 ? Math.min(1.22, Math.max(0.94, Math.pow(stretch, -0.5 * vol))) : 1))
       .rotate(-puppet.rest[bone] * DEG)
       .translate(-anchor[0], -anchor[1]);
 
