@@ -25,6 +25,9 @@ import { createBrushUI } from './brushui.js';
 import { createColourUI } from './colourui.js';
 import { store } from './store.js';
 import { createGallery } from './gallery.js';
+import { createSelection } from './select.js';
+import { createLayerTransform } from './layerxform.js';
+import { createAdjust } from './adjust.js';
 import { createTakes } from './take.js';
 import { createJointBalls } from './joints.js';
 import { createAiFix } from './aifix.js';
@@ -162,7 +165,7 @@ for (const input of document.querySelectorAll('.slider-row input[data-fmt]')) {
 }
 
 // ---------- popovers ----------
-const popovers = [$('actionsPanel'), $('layersPanel'), $('brushPanel'), $('colorPanel')];
+const popovers = [$('actionsPanel'), $('layersPanel'), $('brushPanel'), $('colorPanel'), $('adjMenu')];
 function closePopovers() {
   for (const p of popovers) p.classList.add('hidden');
   $('btnActions').classList.remove('active');
@@ -265,9 +268,13 @@ workspace.addEventListener('pointerdown', (e) => {
   // Like Procreate, a tap on the canvas while a popover is open just closes it.
   if (popovers.some((p) => !p.classList.contains('hidden'))) return closePopovers();
   workspace.setPointerCapture(e.pointerId);
+  const tool = toolRoute();
+  if (tool) return tool.down(e);
   painter.down(e);
 });
 workspace.addEventListener('pointermove', (e) => {
+  const tool = toolRoute();
+  if (tool) return tool.move(e);
   painter.move(e);
   // Rig mode: no brush circle; the cursor says what a tap or drag will do.
   if (takes.brushActive()) {
@@ -283,8 +290,8 @@ workspace.addEventListener('pointermove', (e) => {
     cursor.classList.remove('hidden');
   }
 });
-workspace.addEventListener('pointerup', () => painter.up());
-workspace.addEventListener('pointercancel', () => painter.up());
+workspace.addEventListener('pointerup', (e) => (toolRoute() ? toolRoute().up(e) : painter.up()));
+workspace.addEventListener('pointercancel', (e) => (toolRoute() ? toolRoute().up(e) : painter.up()));
 workspace.addEventListener('pointerleave', () => {
   cursor.classList.add('hidden');
   takes.hover(null);
@@ -796,6 +803,26 @@ document.addEventListener('open-brushes', (e) => {
   $('brushPanel').classList.contains('hidden') || btn.classList.add('active');
 });
 // Each tool remembers its brush, and each brush remembers the size and opacity you last used with it.
+// Which tool, if any, takes the pointer instead of the brush.
+function toolRoute() {
+  if (selection.active) return selection;
+  if (lxform.active) return lxform;
+  if (adjust.liquifying) {
+    return {
+      down: (e) => adjust.liquifyDown(e, painter.toCanvas(e)),
+      move: (e) => adjust.liquifyMove(e, painter.toCanvas(e)),
+      up: () => adjust.liquifyUp(),
+    };
+  }
+  return null;
+}
+// Opening one tool closes the others (a transform in progress is finished, an adjustment is cancelled).
+function leaveTools(keep) {
+  if (keep !== 'selection' && selection.active) selection.exit();
+  if (keep !== 'transform' && lxform.active) lxform.finish(true);
+  if (keep !== 'adjust' && adjust.active) adjust.cancel();
+  closePopovers();
+}
 function useBrushFor(tool) {
   const b = library.toolBrush(tool);
   painter.brush = b;
@@ -833,10 +860,33 @@ function invertLayer(l) {
   l.ctx.putImageData(im, 0, 0);
   studio.commitWhole('Invert', l, before);
 }
+const selection = createSelection({ studio, workspace: $('workspace'), toast, getColour: () => painter.color });
+const lxform = createLayerTransform({ studio, toast, getSelection: () => studio.selection, clearSelection: () => selection.clear() });
+const adjust = createAdjust({
+  studio, toast, getSelection: () => studio.selection,
+  onMode: (on) => on && closePopovers(),
+});
 const layersUI = createLayersUI({
   studio, toast,
-  hooks: { fill: fillLayer, invert: invertLayer, selectLayer: () => toast('Selection arrives in the next step.'), copyLayer: () => toast('Copy arrives in the next step.') },
+  hooks: {
+    fill: fillLayer, invert: invertLayer,
+    selectLayer: (l) => selection.fromLayer(l),
+    copyLayer: (l) => selection.copy(l),
+    clear: (l) => (studio.selection ? selection.eraseSelection(l) : studio.clearLayer(l.id)),
+  },
 });
+$('btnSelection').addEventListener('click', () => {
+  if (selection.active) return selection.exit();
+  leaveTools('selection');
+  selection.enter();
+});
+$('btnAdjust').addEventListener('click', () => {
+  if (adjust.active) adjust.cancel();
+  leaveTools('adjust');
+  togglePopover(adjust.menu);
+});
+// Choosing a brush, smudge or eraser leaves the other tools.
+for (const b of document.querySelectorAll('.tool')) b.addEventListener('click', () => leaveTools('paint'));
 // The Layers popover shows the layers of the open artwork; rows are built when it opens.
 $('btnLayers').addEventListener('click', () => !$('layersPanel').classList.contains('hidden') && layersUI.render());
 
@@ -1264,7 +1314,17 @@ function setTransform(on) {
     hints.show('transform', xform, 'Drag inside the box to <b>move</b> the character. Drag a <b>corner</b> to resize. It applies to every frame.', 'right');
   } else hints.hide();
 }
-$('btnTransform').addEventListener('click', () => setTransform(xform.classList.contains('hidden')));
+// Transform moves the layer you are on; with the Motion Rig layer (or a take open) it moves the character.
+$('btnTransform').addEventListener('click', () => {
+  if (lxform.active) return lxform.finish(true);
+  const l = studio.active;
+  if (l?.type === 'paint' && !takes.editing && xform.classList.contains('hidden')) {
+    leaveTools('transform');
+    if (lxform.begin()) $('btnTransform').classList.add('active');
+    return;
+  }
+  setTransform(xform.classList.contains('hidden'));
+});
 $('xformDone').addEventListener('click', () => setTransform(false));
 $('xformReset').addEventListener('click', () => {
   Object.assign(place, PLACE_DEFAULT);
@@ -1344,6 +1404,7 @@ const takes = createTakes({
   onOpenChange: (open) => open && closePopovers(),
 });
 window.takes = takes;
+window.studio = studio; // for the console and tests
 const aiFix = createAiFix({
   rig,
   takes,

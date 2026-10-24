@@ -250,7 +250,7 @@ export function createLayersUI({ studio, toast, hooks = {} }) {
     else if (m === 'ungroup') studio.ungroup(l.id);
     else if (m === 'merge') studio.mergeDown(l.id);
     else if (m === 'flatten') studio.flattenVisible();
-    else if (m === 'clear') studio.clearLayer(l.id);
+    else if (m === 'clear') (hooks.clear ? hooks.clear(l) : studio.clearLayer(l.id));
     else if (m === 'fill') hooks.fill?.(l);
     else if (m === 'select') hooks.selectLayer?.(l);
     else if (m === 'copy') hooks.copyLayer?.(l);
