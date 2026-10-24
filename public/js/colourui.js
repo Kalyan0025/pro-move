@@ -274,6 +274,7 @@ export function createColourUI({ getColour, setColour, toast }) {
     const p = palettes.find((x) => x.id === activePalette) || palettes[0];
     $('cpPalSwatches').innerHTML = p.colours.map((c, i) => `<button class="cp-sw" style="background:${c}" data-c="${c}" data-i="${i}" aria-label="${c}"></button>`).join('') + '<button class="cp-sw empty" data-add="1" aria-label="Add the current colour">+</button>';
     $('cpPalDelete').classList.toggle('hidden', DEFAULT_PALETTES.some((d) => d.id === p.id));
+    paintSwatches();
   }
   $('cpPalList').addEventListener('click', (e) => {
     const b = e.target.closest('[data-p]');
@@ -326,14 +327,24 @@ export function createColourUI({ getColour, setColour, toast }) {
     const hex = toHex(hsb.h, hsb.s, hsb.b);
     $('cpPrimary').style.background = hex;
     $('cpSecondary').style.background = secondary;
+    const pal = palettes.find((x) => x.id === activePalette) || palettes[0];
+    $('cpPalName').textContent = pal.name;
+    $('cpQuick').innerHTML = pal.colours.map((c) => `<button class="cp-sw small" style="background:${c}" data-hex="${c}" aria-label="${c}"></button>`).join('');
     $('cpHistory').innerHTML = history.map((c) => `<button class="cp-sw small" style="background:${c}" data-hex="${c}" aria-label="${c}"></button>`).join('');
   }
-  $('cpHistory').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-hex]');
-    if (!b) return;
-    hsb = hexToHsb(b.dataset.hex);
-    commit(true);
-    redraw();
+  for (const id of ['cpHistory', 'cpQuick']) {
+    $(id).addEventListener('click', (e) => {
+      const b = e.target.closest('[data-hex]');
+      if (!b) return;
+      hsb = hexToHsb(b.dataset.hex);
+      commit(true);
+      redraw();
+    });
+  }
+  $('cpHistClear').addEventListener('click', () => {
+    history = [];
+    persist();
+    paintSwatches();
   });
   $('cpSecondary').addEventListener('click', () => {
     const cur = toHex(hsb.h, hsb.s, hsb.b);
@@ -356,6 +367,7 @@ export function createColourUI({ getColour, setColour, toast }) {
     for (const v of panel.querySelectorAll('[data-view]')) v.classList.toggle('hidden', v.dataset.view !== tab && !(tab === 'harmony' && v.dataset.view === 'disc'));
     $('cpHueRow').classList.toggle('hidden', tab !== 'classic');
     $('cpHarmony').classList.toggle('hidden', tab !== 'harmony');
+    $('cpUnder').classList.toggle('hidden', tab === 'palettes');
     if (tab === 'disc' || tab === 'harmony') drawDisc(tab === 'harmony');
     if (tab === 'classic') drawSquare();
     if (tab === 'harmony') drawHarmony();

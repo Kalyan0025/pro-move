@@ -444,37 +444,69 @@ export function createSelection({ studio, workspace, toast, getColour, onChange 
   }
 
   // ------------------------------------------------------------ the bar
-  const MODES = [['auto', 'Automatic', '<path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4zM18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z"/>'], ['free', 'Freehand', '<path d="M15.5 6.5c-1.5-2-6.5-1.6-6.5 1.3 0 3.4 7 2.5 7 6.6 0 3-5 3.6-7 1.4"/>'], ['rect', 'Rectangle', '<rect x="5" y="6" width="14" height="12" rx="1.5" stroke-dasharray="3 2.5"/>'], ['ellipse', 'Ellipse', '<ellipse cx="12" cy="12" rx="8" ry="6" stroke-dasharray="3 2.5"/>']];
+  const ICON = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+  const MODES = [['auto', 'Automatic', '<circle cx="12" cy="12" r="5.5" fill="currentColor" stroke="none"/>'], ['free', 'Freehand', '<path d="M15.5 6.5c-1.5-2-6.5-1.6-6.5 1.3 0 3.4 7 2.5 7 6.6 0 3-5 3.6-7 1.4"/>'], ['rect', 'Rectangle', '<rect x="5" y="6" width="14" height="12" rx="1.5" fill="currentColor" stroke="none" opacity=".85"/>'], ['ellipse', 'Ellipse', '<ellipse cx="12" cy="12" rx="8" ry="5.5" fill="currentColor" stroke="none" opacity=".85"/>']];
+  // The icon row under the shape pill, in the order Procreate has it.
+  const ACTS = [
+    ['op', 'add', 'Add', '<rect x="4.5" y="4.5" width="15" height="15" rx="3.5" fill="currentColor" stroke="none"/><path d="M12 8.5v7M8.5 12h7" stroke="#1c1c1e"/>'],
+    ['op', 'remove', 'Remove', '<rect x="4.5" y="4.5" width="15" height="15" rx="3.5" fill="currentColor" stroke="none"/><path d="M8.5 12h7" stroke="#1c1c1e"/>'],
+    ['do', 'invert', 'Invert', '<rect x="4.5" y="4.5" width="15" height="15" rx="3.5"/><path d="M19.5 4.5v15h-15z" fill="currentColor" stroke="none"/>', true],
+    ['do', 'copypaste', 'Copy & Paste', '<path d="M12 5.5a6.5 6.5 0 0 0 0 13z" fill="currentColor" stroke="none"/><path d="M12 5.5a6.5 6.5 0 0 1 0 13" /><path d="M12 4v16" stroke-dasharray="1.5 2.4"/>', true],
+    ['do', 'tune', 'Feather', '<circle cx="12" cy="12" r="6.5" opacity=".5"/><circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/>'],
+    ['do', 'saves', 'Save & Load', '<path d="M12 19.5s-7-4.3-7-9.2A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.3c0 4.900-7 9.200-7 9.200z" fill="currentColor" stroke="none"/>'],
+    ['do', 'fill', 'Color Fill', '<path d="M5 13.5l6.5-7 6 6-6.500 6.500a2 2 0 0 1-2.800 0L5 16.300a2 2 0 0 1 0-2.800z" fill="currentColor" stroke="none"/><path d="M19 17.500c0 1.100-.9 2-2 2s-2-.9-2-2 2-3.500 2-3.500 2 2.400 2 3.500z" fill="currentColor" stroke="none"/>'],
+    ['do', 'clear', 'Clear', '<path d="M4.500 19.500c4 .5 6.500-1 8-3l5.500-7.500a2 2 0 0 0-3-2.500l-6.500 6.500c-2 2-3 4-4 6.500z" fill="currentColor" stroke="none"/>', true],
+  ];
+  let panel = null; // null | 'tune' (Threshold and Feather) | 'saves'
+  const SAVES = 'promove.selections';
+  const saved = () => { try { return JSON.parse(localStorage.getItem(SAVES) || '[]'); } catch { return []; } };
+  function putSaved(list) {
+    try { localStorage.setItem(SAVES, JSON.stringify(list.slice(0, 8))); } catch { toast('Not enough room to keep this selection.'); }
+  }
   function renderBar() {
     if (!bar) return;
     const has = !!studio.selection;
-    bar.innerHTML = `
-      <div class="bar-modes" role="group" aria-label="Selection shape">${MODES.map(([id, label, p]) => `<button data-mode="${id}" class="${mode === id ? 'on' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p}</svg><span>${label}</span></button>`).join('')}</div>
-      <span class="bar-sep"></span>
-      <div class="bar-acts">
-        <button data-op="add" class="${op === 'add' ? 'on' : ''}" data-tip="Add to the selection">Add</button>
-        <button data-op="remove" class="${op === 'remove' ? 'on' : ''}" data-tip="Take away from the selection">Remove</button>
-        <button data-do="invert" ${has ? '' : 'disabled'}>Invert</button>
-        <button data-do="all">Select all</button>
-        <button data-do="copypaste" ${has ? '' : 'disabled'}>Copy &amp; Paste</button>
-        <button data-do="fill">Colour Fill</button>
-        <button data-do="clear" ${has ? '' : 'disabled'}>Clear</button>
-      </div>
-      <div class="bar-sliders">
+    const sv = saved();
+    const tune = panel === 'tune' ? `<div class="sel-panel">
         ${mode === 'auto' ? `<label>Threshold<input type="range" id="selThreshold" min="2" max="90" value="${threshold}"><output>${threshold}</output></label>` : ''}
         <label>Feather<input type="range" id="selFeather" min="0" max="60" value="${feather}" ${has ? '' : 'disabled'}><output>${feather}</output></label>
-      </div>
-      <button class="bar-done" data-do="done">Done</button>`;
+      </div>` : '';
+    const saves = panel === 'saves' ? `<div class="sel-panel sel-saves">
+        <button data-do="savenow" ${has ? '' : 'disabled'}>Save this selection</button>
+        ${sv.map((x, i) => `<span class="sel-save"><button data-load="${i}">${x.name}</button><button data-drop="${i}" aria-label="Delete ${x.name}">&times;</button></span>`).join('') || '<small>Nothing saved yet.</small>'}
+      </div>` : '';
+    bar.innerHTML = `
+      <div class="bar-modes sel-modes" role="group" aria-label="Selection shape">${MODES.map(([id, label, p]) => `<button data-mode="${id}" class="${mode === id ? 'on' : ''}">${ICON(p)}<span>${label}</span></button>`).join('')}</div>
+      ${tune}${saves}
+      <div class="sel-acts">${ACTS.map(([kind, id, label, p, needs]) => `<button data-${kind}="${id}" class="${(kind === 'op' && op === id) || (kind === 'do' && panel === id) ? 'on' : ''}" ${needs && !has ? 'disabled' : ''}>${ICON(p)}<span>${label}</span></button>`).join('')}</div>`;
   }
   bar?.addEventListener('click', (e) => {
     const m = e.target.closest('[data-mode]');
     const o = e.target.closest('[data-op]');
     const a = e.target.closest('[data-do]');
+    const ld = e.target.closest('[data-load]');
+    const dr = e.target.closest('[data-drop]');
     if (m) {
       mode = m.dataset.mode;
+      if (mode === 'auto' && !panel) panel = 'tune';
       renderBar();
     } else if (o) {
       op = op === o.dataset.op ? 'replace' : o.dataset.op;
+      renderBar();
+    } else if (ld) {
+      const item = saved()[Number(ld.dataset.load)];
+      if (!item) return;
+      const img = new Image();
+      img.onload = () => {
+        const c = newMask();
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        setSelection(isEmpty(c) ? null : c);
+      };
+      img.src = item.url;
+    } else if (dr) {
+      const list = saved();
+      list.splice(Number(dr.dataset.drop), 1);
+      putSaved(list);
       renderBar();
     } else if (a && !a.disabled) {
       const d = a.dataset.do;
@@ -483,7 +515,16 @@ export function createSelection({ studio, workspace, toast, getColour, onChange 
       else if (d === 'copypaste') copyPaste();
       else if (d === 'fill') colourFill();
       else if (d === 'clear') setSelection(null);
-      else if (d === 'done') exit();
+      else if (d === 'tune' || d === 'saves') {
+        panel = panel === d ? null : d;
+        renderBar();
+      } else if (d === 'savenow' && studio.selection) {
+        const list = saved();
+        list.unshift({ name: `Selection ${list.length + 1}`, url: studio.selection.toDataURL('image/png') });
+        putSaved(list);
+        toast('Selection saved.');
+        renderBar();
+      } else if (d === 'done') exit();
     }
   });
   bar?.addEventListener('input', (e) => {
@@ -514,6 +555,7 @@ export function createSelection({ studio, workspace, toast, getColour, onChange 
 
   function enter() {
     active = true;
+    panel = mode === 'auto' ? 'tune' : null;
     bar.classList.remove('hidden');
     document.body.classList.add('selecting');
     $('btnSelection')?.classList.add('active');

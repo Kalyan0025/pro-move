@@ -1,5 +1,5 @@
-// Adjustments, like Procreate's: Hue / Saturation / Brightness, Curves, Gaussian Blur, Motion Blur,
-// Sharpen, Noise, Bloom and Liquify. Pick one from the list, drag its sliders to see it on the
+// Adjustments, like Procreate's: Hue / Saturation / Brightness, Color Balance, Curves, Gradient Map,
+// Gaussian, Motion and Perspective Blur, Noise, Sharpen, Bloom, Glitch, Halftone, Chromatic Aberration and Liquify. Pick one from the list, drag its sliders to see it on the
 // active layer (inside the selection, if there is one), then Apply. Cancel puts everything back.
 // While you drag, a smaller copy is processed so it stays smooth; on release the full picture is.
 const $ = (id) => document.getElementById(id);
@@ -94,6 +94,16 @@ function curveLut(pts) {
   }
   return lut;
 }
+
+// Gradient Map presets: the picture's darks take the first colour and its lights the last.
+const MAPS = [
+  ['Sunset', [[20, 8, 60], [190, 40, 90], [250, 150, 60], [255, 240, 200]]],
+  ['Ocean', [[4, 18, 48], [10, 90, 150], [60, 190, 210], [235, 250, 250]]],
+  ['Fire', [[10, 0, 0], [160, 20, 0], [255, 140, 0], [255, 250, 190]]],
+  ['Forest', [[8, 24, 16], [30, 100, 60], [160, 200, 90], [250, 245, 200]]],
+  ['Candy', [[40, 10, 80], [210, 60, 160], [255, 160, 200], [255, 250, 245]]],
+  ['Black & white', [[0, 0, 0], [255, 255, 255]]],
+];
 
 // ---------------------------------------------------------------- the effects
 // Each takes ImageData and its parameters and changes it in place. `s` is the size of this copy
@@ -224,6 +234,143 @@ const EFFECTS = {
       }
     },
   },
+  colorBalance: {
+    name: 'Color Balance', icon: '<circle cx="9.5" cy="10" r="5.5"/><circle cx="14.5" cy="10" r="5.5"/><circle cx="12" cy="14.5" r="5.5"/>',
+    sliders: [['range', 'Tones', -100, 100, 0, (v) => (v < -33 ? 'Shadows' : v > 33 ? 'Highlights' : 'Midtones')], ['cr', 'Cyan - Red', -100, 100, 0, (v) => `${v}`], ['mg', 'Magenta - Green', -100, 100, 0, (v) => `${v}`], ['yb', 'Yellow - Blue', -100, 100, 0, (v) => `${v}`]],
+    run(im, p) {
+      const d = im.data;
+      // The tones slider moves the band of brightness that is changed: shadows, midtones or highlights.
+      const centre = 0.5 + p.range / 200;
+      for (let i = 0; i < d.length; i += 4) {
+        if (!d[i + 3]) continue;
+        const l = lum(d[i], d[i + 1], d[i + 2]) / 255;
+        const w = Math.max(0, 1 - Math.abs(l - centre) * 2.2);
+        d[i] = clamp(d[i] + (p.cr * 0.9 - p.mg * 0.2) * w, 0, 255);
+        d[i + 1] = clamp(d[i + 1] + (p.mg * 0.9 - p.cr * 0.2 - p.yb * 0.2) * w, 0, 255);
+        d[i + 2] = clamp(d[i + 2] + (p.yb * 0.9 - p.cr * 0.2) * w, 0, 255);
+      }
+    },
+  },
+  gradientMap: {
+    name: 'Gradient Map', icon: '<rect x="4" y="6" width="16" height="12" rx="3"/><path d="M8 6v12M12 6v12M16 6v12" opacity=".5"/>',
+    sliders: [['map', 'Gradient', 0, MAPS.length - 1, 0, (v) => MAPS[v][0]], ['mix', 'Amount', 0, 100, 100, (v) => `${v}%`]],
+    run(im, p) {
+      const d = im.data;
+      const stops = MAPS[p.map][1];
+      const lut = new Uint8ClampedArray(256 * 3);
+      for (let x = 0; x < 256; x++) {
+        const t = (x / 255) * (stops.length - 1), i = Math.min(stops.length - 2, Math.floor(t)), f = t - i;
+        for (let c = 0; c < 3; c++) lut[x * 3 + c] = stops[i][c] * (1 - f) + stops[i + 1][c] * f;
+      }
+      const m = p.mix / 100;
+      for (let i = 0; i < d.length; i += 4) {
+        if (!d[i + 3]) continue;
+        const l = Math.round(lum(d[i], d[i + 1], d[i + 2]));
+        for (let c = 0; c < 3; c++) d[i + c] = d[i + c] * (1 - m) + lut[l * 3 + c] * m;
+      }
+    },
+  },
+  perspective: {
+    name: 'Perspective Blur', icon: '<path d="M12 12L4 5M12 12l8-7M12 12L4 19M12 12l8 7"/><circle cx="12" cy="12" r="1.6"/>',
+    sliders: [['amount', 'Amount', 0, 100, 30, (v) => `${v}%`], ['x', 'Pin across', 0, 100, 50, (v) => `${v}%`], ['y', 'Pin down', 0, 100, 50, (v) => `${v}%`]],
+    run(im, p, s, W, H) {
+      // A zoom blur: each pixel is averaged along the line toward the pin.
+      const d = im.data;
+      premultiply(d);
+      const src = new Uint8ClampedArray(d);
+      const px = (p.x / 100) * W, py = (p.y / 100) * H;
+      const reach = (p.amount / 100) * 0.35, steps = 14;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          let r = 0, g = 0, b = 0, a = 0;
+          for (let k = 0; k < steps; k++) {
+            const t = 1 - (k / (steps - 1)) * reach;
+            const sx = clamp(Math.round(px + (x - px) * t), 0, W - 1), sy = clamp(Math.round(py + (y - py) * t), 0, H - 1);
+            const j = (sy * W + sx) * 4;
+            r += src[j]; g += src[j + 1]; b += src[j + 2]; a += src[j + 3];
+          }
+          const i = (y * W + x) * 4;
+          d[i] = r / steps; d[i + 1] = g / steps; d[i + 2] = b / steps; d[i + 3] = a / steps;
+        }
+      }
+      unpremultiply(d);
+    },
+  },
+  glitch: {
+    name: 'Glitch', icon: '<path d="M4 7h9M9 11h11M4 15h7M13 19h7"/>',
+    sliders: [['amount', 'Amount', 0, 100, 40, (v) => `${v}%`], ['split', 'Colour split', 0, 100, 30, (v) => `${v}%`], ['seed', 'Seed', 1, 99, 7, (v) => `${v}`]],
+    run(im, p, s, W, H) {
+      const d = im.data;
+      const src = new Uint8ClampedArray(d);
+      let seed = p.seed * 7919;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      // Bands of rows slide sideways; the red and blue channels slip apart a little.
+      const shift = new Int32Array(H);
+      let y = 0;
+      while (y < H) {
+        const h = Math.max(1, Math.round(rnd() * H * 0.06));
+        const off = rnd() < p.amount / 130 ? Math.round((rnd() - 0.5) * 2 * (p.amount / 100) * W * 0.12) : 0;
+        for (let k = 0; k < h && y + k < H; k++) shift[y + k] = off;
+        y += h;
+      }
+      const cs = Math.round((p.split / 100) * 0.015 * W);
+      for (let yy = 0; yy < H; yy++) {
+        for (let x = 0; x < W; x++) {
+          const at = (xx) => (yy * W + clamp(xx - shift[yy], 0, W - 1)) * 4;
+          const i = (yy * W + x) * 4, jr = at(x - cs), jg = at(x), jb = at(x + cs);
+          // A channel that slipped past the drawing's edge takes the middle one's value, not black.
+          d[i] = src[jr + 3] ? src[jr] : src[jg];
+          d[i + 1] = src[jg + 1];
+          d[i + 2] = src[jb + 3] ? src[jb + 2] : src[jg + 2];
+          d[i + 3] = Math.max(src[jr + 3], src[jg + 3], src[jb + 3]);
+        }
+      }
+    },
+  },
+  halftone: {
+    name: 'Halftone', icon: '<circle cx="7" cy="7" r="2.4"/><circle cx="17" cy="7" r="1.6"/><circle cx="7" cy="17" r="1.6"/><circle cx="17" cy="17" r="2.4"/><circle cx="12" cy="12" r="2"/>',
+    sliders: [['size', 'Size', 1, 100, 25, (v) => `${v}%`], ['colour', 'Colour', 0, 100, 100, (v) => (v ? `${v}%` : 'Black')]],
+    run(im, p, s, W, H) {
+      const d = im.data;
+      const src = new Uint8ClampedArray(d);
+      const cell = Math.max(3, (p.size / 100) * 0.05 * Math.max(W, H));
+      const k = p.colour / 100;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4;
+          if (!src[i + 3]) continue;
+          // The dot belongs to the grid cell this pixel is in, rotated 45 degrees like a printing screen.
+          const u = (x + y) * 0.7071, v = (x - y) * 0.7071;
+          const cu = (Math.floor(u / cell) + 0.5) * cell, cv = (Math.floor(v / cell) + 0.5) * cell;
+          const cx = clamp(Math.round((cu + cv) * 0.7071), 0, W - 1), cy = clamp(Math.round((cu - cv) * 0.7071), 0, H - 1);
+          const j = (cy * W + cx) * 4;
+          const dark = 1 - lum(src[j], src[j + 1], src[j + 2]) / 255;
+          const r = Math.sqrt(dark) * cell * 0.72;
+          const inside = Math.hypot(u - cu, v - cv) <= r;
+          for (let c = 0; c < 3; c++) d[i + c] = inside ? src[j + c] * k : 255;
+        }
+      }
+    },
+  },
+  chromatic: {
+    name: 'Chromatic Aberration', icon: '<circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5" opacity=".6"/>',
+    sliders: [['amount', 'Amount', 0, 100, 30, (v) => `${v}%`], ['angle', 'Angle', -180, 180, 0, (v) => `${v}°`]],
+    run(im, p, s, W, H) {
+      const d = im.data;
+      const src = new Uint8ClampedArray(d);
+      const a = (p.angle * Math.PI) / 180, n = (p.amount / 100) * 0.012 * Math.max(W, H);
+      const dx = Math.cos(a) * n, dy = Math.sin(a) * n;
+      const at = (x, y, ox, oy) => (clamp(Math.round(y + oy), 0, H - 1) * W + clamp(Math.round(x + ox), 0, W - 1)) * 4;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          const i = (y * W + x) * 4, jr = at(x, y, -dx, -dy), jb = at(x, y, dx, dy);
+          d[i] = src[jr + 3] ? src[jr] : src[i];
+          d[i + 2] = src[jb + 3] ? src[jb + 2] : src[i + 2];
+          d[i + 3] = Math.max(src[jr + 3], src[i + 3], src[jb + 3]);
+        }
+      }
+    },
+  },
   liquify: { name: 'Liquify', icon: '<path d="M3 12c3-6 6 6 9 0s6 6 9 0"/><path d="M3 17c3-6 6 6 9 0s6 6 9 0"/>', liquify: true },
 };
 
@@ -235,7 +382,9 @@ export function createAdjust({ studio, toast, getSelection, onMode }) {
   const defaultCurves = () => ({ rgb: [[0, 0], [255, 255]], r: [[0, 0], [255, 255]], g: [[0, 0], [255, 255]], b: [[0, 0], [255, 255]] });
 
   // ------------------------------------------------------------ list
-  menu.innerHTML = `<h2 class="pop-title">Adjustments</h2>${Object.entries(EFFECTS).map(([k, e]) => `<button class="row link adj-item" data-adj="${k}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${e.icon}</svg>${e.name}</button>`).join('')}`;
+  // The list is in Procreate's order, in groups of the same kind.
+  const GROUPS = [['hsb', 'colorBalance', 'curves', 'gradientMap'], ['gaussian', 'motion', 'perspective'], ['noise', 'sharpen', 'bloom', 'glitch', 'halftone', 'chromatic'], ['liquify']];
+  menu.innerHTML = `<h2 class="pop-title">Adjustments</h2>${GROUPS.map((g) => `<div class="adj-group">${g.map((k) => `<button class="row link adj-item" data-adj="${k}">${EFFECTS[k].name}</button>`).join('')}</div>`).join('')}`;
   menu.addEventListener('click', (e) => {
     const b = e.target.closest('[data-adj]');
     if (!b) return;

@@ -312,6 +312,12 @@ export function createActions({ studio, painter, selection, toast, getColour, st
       else if (fmt === 'promove') {
         await studio.saveNow();
         download(await toPromove(await studio.serialize()), `${base}.promove`);
+      } else if (fmt === 'layerpngs') {
+        const ls = exportLayers().filter((l) => l.type === 'paint' && l.visible !== false);
+        for (let i = 0; i < ls.length; i++) {
+          download(await toPNG(ls[i].canvas), `${base}-${String(i + 1).padStart(2, '0')}-${fileName(ls[i].name)}.png`);
+          await new Promise((r) => setTimeout(r, 250)); // browsers drop downloads that arrive all at once
+        }
       } else if (fmt === 'flat') download(await toPNG(flattenLayers(exportLayers(), { width: d.width, height: d.height, bgColor: d.bg.color, transparent: true })), `${base}-layers.png`);
       toast('Saved to your downloads.', 1800);
     } catch (err) {

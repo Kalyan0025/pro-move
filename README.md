@@ -282,3 +282,13 @@ Five sliders and four presets (Natural, Cartoon, Soft body, Rigid) drive the mot
 - **Joint limits**: elbows, knees and the head fold only so far, easing into the limit.
 - **Confidence-weighted smoothing**: a joint the tracker is unsure of is smoothed harder.
 Physics changes what is drawn live. Recorded takes, thumbnails and exports keep the rig's own pose. Not built: self-collision between limbs and body, hair, and learned texture repair in the live loop.
+
+## Procreate parity pass
+
+Checked against a screen recording of Procreate on iPad.
+
+- **Selection bar**: a shape pill (Automatic, Freehand, Rectangle, Ellipse) over an icon row: Add, Remove, Invert, Copy & Paste, Feather, Save & Load, Color Fill, Clear. Feather opens Threshold and Feather sliders. Save & Load keeps up to eight selections on this device. Tap the S button again to leave.
+- **Adjustments**: the list now follows Procreate's order, in groups. New: Color Balance, Gradient Map, Perspective Blur, Glitch, Halftone, Chromatic Aberration. Clone is not built.
+- **Colours**: History (with Clear) and the active palette sit under the picker on Disc, Classic, Harmony and Value.
+- **Share**: a Share layers group with PNG files, one per layer.
+- **Fixed**: tapping the brush tool you are already using did not open the Brush Library, because the tool-switch handler closed it straight away.
