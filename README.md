@@ -245,3 +245,10 @@ Code: `public/js/onboarding.js` (tour and chooser), `public/js/editor.js` (scan 
 
 ## Damage check: green, yellow, red
 **Timeline › Settings › Show gap areas** now rates every joint for the current pose: green (the cut parts still cover each other), yellow (a small break may show), red (a real break). AI repair (**Export › Fix gaps with AI**) fades in with the severity, so a repair no longer pops on in one frame when a joint crosses the line. **Repair mild gaps too** (on by default) can be switched off to repair red joints only. Code: `hingeLevels` in `public/js/comfy.js`.
+
+## Optional AI joint fix (scan, then fix)
+The AI step is never automatic. The rig check no longer opens by itself when the camera first starts (it is still under **Actions › Rig › Run rig check**). To use the AI, open a take and tap **Fix joints** next to Parts.
+- **Scan:** each drawing in the take is shown in turn while a light band sweeps down it and marks every joint green, yellow or red.
+- **Fix:** the fewest drawings that cover all the red and yellow breaks are sent to ComfyUI, one at a time. A turning ring and drifting dots mark each break being worked on, and a green tick shows it mended. **Stop** keeps the repairs already made.
+- The repairs are saved as joint fixes and blend in as the take plays (**Use AI joint fixes** switches them off). If ComfyUI isn't running, the card says so and nothing else happens.
+Code: `public/js/aifix.js`.

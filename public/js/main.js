@@ -20,6 +20,7 @@ import { demoFrame } from './demo.js';
 import { Painter } from './paint.js';
 import { createTakes } from './take.js';
 import { createJointBalls } from './joints.js';
+import { createAiFix } from './aifix.js';
 import { createTips, createHints } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
@@ -449,12 +450,7 @@ async function startCamera() {
     jointFilter.reset();
     $('btnCamera').textContent = 'Stop camera';
     setStatus('tracking', true);
-    let checked = false;
-    try { checked = localStorage.getItem(`rig.checkDone.${choice}`) === '1'; } catch {}
-    if (!checked && activePuppet()) {
-      closePopovers();
-      rigCheck.start();
-    }
+    // The rig check and AI joint fixes are optional: Actions › Rig › Run rig check, or Fix joints on a take.
   } catch (err) {
     console.error(err);
     toast(`Couldn't start the camera: ${err.message || err}`, 5000);
@@ -1199,6 +1195,7 @@ const tips = createTips(screenEl);
 const hints = createHints(screenEl);
 const takes = createTakes({
   hints,
+  onAiFix: () => aiFix.start(),
   // What the capture bar's status light shows.
   status: () => {
     const live = state.source !== 'none';
@@ -1231,6 +1228,14 @@ const takes = createTakes({
   onOpenChange: (open) => open && closePopovers(),
 });
 window.takes = takes;
+const aiFix = createAiFix({
+  rig,
+  takes,
+  correctives,
+  toast,
+  renderPose: (target, W, H, pose) => drawPose(target, W, H, pose, {}, thumbRenderer),
+});
+
 
 // Pose brush: in Rig mode, tap a part on the canvas to select it and drag to bend it.
 function stagePoint(e) {
@@ -1533,6 +1538,7 @@ function frame(now) {
   if (P && !shown?.image) drawRigView(ctx, activePuppet(), { mesh: $('optMesh').checked, weights: $('optWeights').checked });
   if ($('optSkeleton').checked && P) drawSkeleton(ctx, P);
   // Where the AI would repair this pose (joints bent far from the drawing).
+  if (P && aiFix.running && shown?.pose) aiFix.draw(ctx, P, shown.pose, now);
   if (P && activePuppet() && $('tlShowGaps').checked) drawGapMarks(ctx, hingeLevels(shown?.pose || rig.getPose(), P, rig.rest));
   if (recorder) flatten();
   requestAnimationFrame(frame);
