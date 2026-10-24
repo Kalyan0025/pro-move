@@ -21,6 +21,8 @@ import { Painter } from './paint.js';
 import { createStudio } from './studio.js';
 import { createLibrary } from './brushes.js';
 import { createLayersUI } from './layersui.js';
+import { createBrushUI } from './brushui.js';
+import { createColourUI } from './colourui.js';
 import { store } from './store.js';
 import { createTakes } from './take.js';
 import { createJointBalls } from './joints.js';
@@ -159,11 +161,12 @@ for (const input of document.querySelectorAll('.slider-row input[data-fmt]')) {
 }
 
 // ---------- popovers ----------
-const popovers = [$('actionsPanel'), $('layersPanel')];
+const popovers = [$('actionsPanel'), $('layersPanel'), $('brushPanel'), $('colorPanel')];
 function closePopovers() {
   for (const p of popovers) p.classList.add('hidden');
   $('btnActions').classList.remove('active');
   $('btnLayers').classList.remove('active');
+  document.querySelectorAll('.tool.active, #btnColor').forEach((b) => b.classList.remove('open'));
 }
 function togglePopover(panel) {
   const opening = panel.classList.contains('hidden');
@@ -176,7 +179,7 @@ function togglePopover(panel) {
   const right = (ar.right - sr.left) / state.scale;
   panel.classList.remove('hidden');
   const w = panel.offsetWidth;
-  panel.style.left = `${Math.max(8, Math.min(SCREEN_W - w - 8, panel.id === 'layersPanel' ? right - w + 6 : left - 18))}px`;
+  panel.style.left = `${Math.max(8, Math.min(SCREEN_W - w - 8, ['layersPanel', 'brushPanel', 'colorPanel'].includes(panel.id) ? right - w + 6 : left - 18))}px`;
   anchor.classList.add('active');
 }
 $('btnActions').addEventListener('click', () => togglePopover($('actionsPanel')));
@@ -209,7 +212,10 @@ for (const b of document.querySelectorAll('.tool')) {
     if (same) document.dispatchEvent(new CustomEvent('open-brushes', { detail: b }));
   });
 }
-$('btnColor').addEventListener('click', () => $('colorInput').click());
+$('btnColor').addEventListener('click', () => {
+  colourUI.sync();
+  togglePopover($('colorPanel'));
+});
 function setColor(hex) {
   painter.color = hex;
   $('colorInput').value = hex;
@@ -217,6 +223,8 @@ function setColor(hex) {
 }
 $('colorInput').addEventListener('input', () => setColor($('colorInput').value));
 setColor('#000000');
+const colourUI = createColourUI({ getColour: () => painter.color, setColour: setColor, toast });
+painter.onStroke = () => colourUI.used();
 
 let hudTimer;
 function hud(text) {
@@ -234,6 +242,7 @@ $('btnModify').addEventListener('click', () => {
 });
 painter.onPick = (hex) => {
   setColor(hex);
+  colourUI.pickedExternally(hex);
   painter.picking = false;
   $('btnModify').classList.remove('active');
 };
@@ -777,6 +786,14 @@ async function drawingToCanvas(file) {
 }
 
 // ---------- the artwork: brushes, layers, saving ----------
+const brushUI = createBrushUI({ library, painter, toast });
+document.addEventListener('open-brushes', (e) => {
+  const btn = e.detail;
+  brushUI.open(painter.tool);
+  $('brushPanel').dataset.anchor = btn.id;
+  togglePopover($('brushPanel'));
+  $('brushPanel').classList.contains('hidden') || btn.classList.add('active');
+});
 // Each tool remembers its brush, and each brush remembers the size and opacity you last used with it.
 function useBrushFor(tool) {
   const b = library.toolBrush(tool);

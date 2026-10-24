@@ -189,3 +189,44 @@ export function stamp(ctx, brush, x, y, diameter, alpha, color, angleRad = 0) {
     ctx.restore();
   }
 }
+
+// A sample stroke (a gentle S) drawn with a brush, for the library list and Brush Studio.
+export function previewStroke(canvas, brush, color = '#000000', sizeHint = null) {
+  const g = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  g.clearRect(0, 0, W, H);
+  const layer = document.createElement('canvas');
+  layer.width = W;
+  layer.height = H;
+  const lg = layer.getContext('2d');
+  // The preview scales the brush to fit the picture, so thin and fat brushes both read.
+  const base = sizeHint ?? Math.min(H * 0.55, Math.max(3, brush.size * (H / 60) * 0.7));
+  const steps = 260;
+  let carry = 0;
+  let prev = null;
+  for (let i = 0; i <= steps; i++) {
+    const u = i / steps;
+    const x = W * 0.08 + u * W * 0.84;
+    const y = H / 2 + Math.sin(u * Math.PI * 2) * H * 0.22;
+    const press = 0.25 + 0.75 * Math.sin(u * Math.PI);
+    const sizeK = 1 - (brush.pressureSize || 0) * (1 - press);
+    const alphaK = 1 - (brush.pressureOpacity || 0) * (1 - press);
+    const dia = Math.max(1.2, base * sizeK);
+    if (prev) {
+      const dist = Math.hypot(x - prev.x, y - prev.y);
+      carry += dist;
+      const spacing = Math.max(0.8, dia * (brush.spacing || 0.06));
+      while (carry >= spacing) {
+        carry -= spacing;
+        const jx = brush.scatter ? (Math.random() - 0.5) * 2 * brush.scatter * dia : 0;
+        const jy = brush.scatter ? (Math.random() - 0.5) * 2 * brush.scatter * dia : 0;
+        stamp(lg, brush, x + jx, y + jy, dia, (brush.flow ?? 1) * alphaK, color);
+      }
+    }
+    prev = { x, y };
+  }
+  lg.globalAlpha = 1;
+  g.globalAlpha = Math.max(0.35, brush.opacity ?? 1);
+  g.drawImage(layer, 0, 0);
+  g.globalAlpha = 1;
+}
