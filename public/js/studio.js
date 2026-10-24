@@ -211,8 +211,12 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     };
   }
   const forget = (l) => {
-    if (l) l._blob = l._maskBlob = null;
-    else for (const x of doc?.layers || []) x._blob = x._maskBlob = null;
+    const one = (x) => {
+      x._blob = x._maskBlob = null;
+      x._ver = (x._ver || 0) + 1;
+    };
+    if (l) one(l);
+    else for (const x of doc?.layers || []) one(x);
   };
   on('pixels', forget);
   const afterPixels = (canvas) => {
@@ -739,6 +743,7 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
   // ---------------------------------------------------------------- saving and loading
   let saveTimer = 0;
   let dirty = false;
+  let held = false; // while the last artwork is being reopened, the blank one on screen must not be saved over it
   function touch(record = true) {
     if (!doc) return;
     doc.modified = Date.now();
@@ -752,8 +757,16 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     for (const l of doc.layers) {
       const rec = { id: l.id, name: l.name, type: l.type, visible: l.visible, opacity: l.opacity, blend: l.blend, alphaLock: l.alphaLock, locked: l.locked, parent: l.parent, expanded: l.expanded, hold: l.hold };
       // Unchanged layers reuse their last picture, so saving only re-encodes what was edited.
-      if (l.canvas) rec.blob = l._blob || (l._blob = await canvasToBlob(l.canvas));
-      if (l.mask) rec.maskBlob = l._maskBlob || (l._maskBlob = await canvasToBlob(l.mask));
+      // The picture is only kept for next time if the layer was not painted on while it was being encoded.
+      const ver = l._ver || 0;
+      if (l.canvas) {
+        rec.blob = l._blob || (await canvasToBlob(l.canvas));
+        if ((l._ver || 0) === ver) l._blob = rec.blob;
+      }
+      if (l.mask) {
+        rec.maskBlob = l._maskBlob || (await canvasToBlob(l.mask));
+        if ((l._ver || 0) === ver) l._maskBlob = rec.maskBlob;
+      }
       layers.push(rec);
     }
     return {
@@ -763,7 +776,7 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     };
   }
   async function save() {
-    if (!doc || !dirty || !store.available) return;
+    if (!doc || !dirty || held || !store.available) return;
     dirty = false;
     try {
       await store.put(await serialize());
@@ -803,6 +816,7 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
   }
   // Save the open artwork now (the Gallery does this so its card is up to date).
   async function saveNow() {
+    if (held) return;
     dirty = true;
     await save();
   }
@@ -845,7 +859,7 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     get animating() { return !!animView; },
     addOverlay: (el, z = 800) => { overlays.push({ el, z }); workspace.append(el); layout(); },
     paintTarget, pushHistory, rectEntry, commitWhole, propEntry, structureEntry, undo, redo,
-    create, load, open, newArtwork, save, saveNow, touch, resizeScreen, layout, flatten, sampleAt, thumbnail, layerThumb,
+    hold: (v) => (held = v), create, load, open, newArtwork, save, saveNow, touch, resizeScreen, layout, flatten, sampleAt, thumbnail, layerThumb,
     BLEND,
   };
 }

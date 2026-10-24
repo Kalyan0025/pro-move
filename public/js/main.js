@@ -945,6 +945,7 @@ $('btnGallery').addEventListener('click', () => {
   gallery.open();
 });
 // Pick up where you left off: reopen the last artwork.
+studio.hold(true);
 (async () => {
   try {
     const id = localStorage.getItem('promove.current');
@@ -955,6 +956,8 @@ $('btnGallery').addEventListener('click', () => {
     }
   } catch (err) {
     console.error(err);
+  } finally {
+    studio.hold(false);
   }
 })();
 
