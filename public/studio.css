@@ -301,3 +301,10 @@ body.ui-hidden .ui-show { display: grid; }
 .af-row.line small { grid-column: 1; color: var(--text-dim); font-size: 11.5px; }
 body.frame-anim .toolbar { bottom: 130px; }
 body.frame-anim .zoom-pill { bottom: 130px; }
+
+/* ---------- Character physics ---------- */
+.ph-presets { display: flex; gap: 6px; padding: 8px 14px 10px; flex-wrap: wrap; }
+.ph-presets button { flex: 1 1 auto; min-height: 36px; padding: 0 12px; border-radius: 18px; background: rgba(120, 120, 128, .22); font-size: 12.5px; text-align: center; }
+.ph-presets button.on { background: var(--accent-strong); color: #fff; }
+.ph-row .ph-hint { display: block; width: 100%; margin: 2px 0 0; padding: 0; font-size: 11.5px; line-height: 1.35; color: var(--text-dim); }
+#phPlot { display: block; width: calc(100% - 28px); margin: 8px 14px 0; border-radius: 10px; }

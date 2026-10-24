@@ -29,6 +29,8 @@ import { createSelection } from './select.js';
 import { createLayerTransform } from './layerxform.js';
 import { createAdjust } from './adjust.js';
 import { createActions } from './actionsui.js';
+import { createPhysics } from './physics.js';
+import { createPhysicsUI } from './physicsui.js';
 import { createGestures } from './gestures.js';
 import { createAnim } from './anim.js';
 import { createTakes } from './take.js';
@@ -54,6 +56,7 @@ const painter = new Painter(studio, $('strokeLayer'));
 painter.onError = (m) => toast(m, 3500);
 const library = createLibrary();
 const rig = new Rig();
+const physics = createPhysics({ rig, toast });
 const jointFilter = new JointFilter();
 const renderer = createRenderer();
 // Secondary cloth motion runs only on the live stage renderer (not thumbnails or exports).
@@ -62,7 +65,7 @@ const deform = createDeform();
 let lab = null; // the Rig Lab panel, created below
 renderer.post = (puppet, piece, mesh, mats) => {
   const s = lab?.settings();
-  if (s) deform.apply(puppet, piece, mesh, mats, { method: s.skin, preserve: s.preserve });
+  if (s) deform.apply(puppet, piece, mesh, mats, { method: s.skin, preserve: s.preserve, amount: physics.d.shape });
   if (document.getElementById('optCloth')?.checked) cloth.apply(puppet, piece, mesh);
 };
 const state = { source: 'none', tracker: null, lastVideoTime: -1, joints: null, face: null, scale: 1, yaw: 0 };
@@ -525,6 +528,7 @@ $('btnDemo').addEventListener('click', () => {
 });
 $('btnRecenter').addEventListener('click', () => {
   rig.recenter();
+  physics.reset();
   toast('Character recentered');
 });
 
@@ -722,6 +726,7 @@ function selectCharacter(next, { remember = true } = {}) {
   else rig.resetCharacter();
   rig.recenter();
   cloth.reset();
+  physics.reset();
   correctives.load(choice === 'custom' && p ? `custom:${p.name}` : choice);
 }
 for (const r of document.querySelectorAll('input[name="charChoice"]')) r.addEventListener('input', () => selectCharacter(r.value));
@@ -896,6 +901,7 @@ $('btnAdjust').addEventListener('click', () => {
   leaveTools('adjust');
   togglePopover(adjust.menu);
 });
+createPhysicsUI({ physics, toast });
 const actions = createActions({
   studio, painter, selection, toast, stage, bgImage: () => bgImage,
   getColour: () => painter.color, closePopovers,
@@ -1239,16 +1245,28 @@ const basicCanvas = document.createElement('canvas');
 
 // Draw the character in the rig's current pose. Returns the solved joint positions.
 // fitH: the height to fit the character into (less than H when the timeline covers the bottom).
-function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = null } = {}) {
+function squashBegin(target, sq) {
+  target.save();
+  target.translate(sq.x, sq.y);
+  target.scale(sq.sx, sq.sy);
+  target.translate(-sq.x, -sq.y);
+}
+function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = null, live = false } = {}) {
   const scale = Number($('charScale').value) * mul;
   if (choice === 'doodle') {
     const P = rig.solve(W, fitH, scale * 1.2, shift);
+    const sq = live ? physics.squashFor(P) : null;
+    if (sq) squashBegin(target, sq);
     drawDoodle(target, rig, P, { alpha });
+    if (sq) target.restore();
     return P;
   }
   const p = viewPuppet();
   if (p) {
     const P = rig.solve(W, fitH, scale * 1.2, shift);
+    // Squash and stretch (live only): the whole character is scaled about its feet, area kept.
+    const sq = live ? physics.squashFor(P) : null;
+    if (sq) squashBegin(target, sq);
     drawPuppet(target, p, rig, P, r, alpha, view.flip);
     if (alpha === 1 && view.id === 'front' && $('optCorrect').checked) correctives.draw(target, rig, P);
     // Round, colour-matched joints that fade in as a joint bends or stretches.
@@ -1257,6 +1275,7 @@ function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = 
     if ($('optDust').checked) {
       jointDust.draw(target, p, rig, P, { alpha, flip: view.flip, density: Number($('dustDensity').value), size: Number($('dustSize').value), time: performance.now() / 1000 });
     }
+    if (sq) target.restore();
     return P;
   }
   if (basicCanvas.width !== W || basicCanvas.height !== H) {
@@ -1437,6 +1456,7 @@ const takes = createTakes({
 });
 window.takes = takes;
 window.studio = studio; // for the console and tests
+window.physics = physics;
 const aiFix = createAiFix({
   rig,
   takes,
@@ -1653,7 +1673,7 @@ function frame(now) {
     faceOn: $('optFace').checked,
     mirror: $('optMirror').checked,
     legRest: $('optLegRest').checked,
-    smoothing: Number($('smoothing').value),
+    smoothing: physics.d.smooth,
   };
   // While a take is recording, follow the camera closely; clean-up happens afterwards.
   if (takes.rawCapture) o.smoothing = Math.min(o.smoothing, 0.15);
@@ -1671,7 +1691,8 @@ function frame(now) {
   }
   const rigOpts = {
     ...o,
-    motion: { enabled: $('labSprings').checked, smooth: o.smoothing, follow: Number($('follow').value) },
+    motion: { enabled: $('labSprings').checked, smooth: o.smoothing, follow: physics.d.follow, overshoot: physics.d.overshoot },
+    limits: physics.d.limits,
     override: test?.override,
     offset: test?.offset,
   };
@@ -1708,7 +1729,8 @@ function frame(now) {
     else rig.face.turn = 0;
   }
   takes.record(now);
-  cloth.frame(dt, Number($('bounce').value), Number($('labSecondary').value));
+  cloth.frame(dt, physics.d.bounce, physics.d.secondary, physics.d.stretch);
+  physics.step(dt, state.source !== 'none' && !window.motionRig?.freeze && !takes.editing);
 
   const live = state.source !== 'none';
   watchHold(now, dt, live);
@@ -1736,7 +1758,7 @@ function frame(now) {
   } else if (shown) {
     P = drawPose(ctx, stage.width, stage.height, shown.pose, placed);
   } else {
-    P = drawCharacter(ctx, stage.width, stage.height, renderer, placed);
+    P = drawCharacter(ctx, stage.width, stage.height, renderer, { ...placed, live: state.source !== 'none' });
   }
   stageP = P;
   if (!xform.classList.contains('hidden')) placeBox(P);

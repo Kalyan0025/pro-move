@@ -188,6 +188,7 @@
       <nav class="seg">
         <button class="seg-btn active" data-sub="capture">Capture</button>
         <button class="seg-btn" data-sub="character">Character</button>
+        <button class="seg-btn" data-sub="physics">Physics</button>
         <button class="seg-btn" data-sub="joints">Joints</button>
       </nav>
 
@@ -249,6 +250,18 @@
           <div class="parts" id="partsList"></div>
           <button class="btn" id="btnClearParts">Reset parts</button>
         </div>
+      </div>
+
+      <div class="sub hidden" data-subpane="physics">
+        <div class="group-title">Character physics</div>
+        <div class="ph-presets" id="phPresets" role="group" aria-label="Physics presets"></div>
+        <div class="group" id="phSliders"></div>
+        <canvas id="phPlot" width="300" height="108" aria-label="How the body and the forearm settle"></canvas>
+        <p class="hint" id="phNow">Move, jump or step in the camera view to see it work.</p>
+        <div class="group">
+          <label class="row">Joint limits<small>elbows, knees and head fold only so far</small><input type="checkbox" class="switch" id="phLimits" checked></label>
+        </div>
+        <button class="btn" id="phCopy" style="margin:8px 14px 4px;width:calc(100% - 28px)">Copy physics configuration</button>
       </div>
 
       <div class="sub hidden" data-subpane="joints">
