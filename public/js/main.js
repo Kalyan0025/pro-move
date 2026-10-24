@@ -5,7 +5,7 @@ import { layeredSVG, layeredPSD, readLayeredPSD, readFlatPSD, downloadBlob, PART
 import { createOnboarding } from './onboarding.js';
 import { editJoints } from './editor.js';
 import { createTimeline } from './timeline.js';
-import { gapRegions } from './comfy.js';
+import { hingeLevels } from './comfy.js';
 import { createCorrectives } from './correctives.js';
 import { createRigCheck } from './rigcheck.js';
 import { FEELS } from './motion.js';
@@ -18,20 +18,41 @@ import { JointFilter } from './filters.js';
 import { createTracker, poseToJoints, faceToExpression, drawOverlay, bodyYaw } from './tracker.js';
 import { demoFrame } from './demo.js';
 import { Painter } from './paint.js';
+import { createStudio } from './studio.js';
+import { createLibrary } from './brushes.js';
+import { createLayersUI } from './layersui.js';
+import { createBrushUI } from './brushui.js';
+import { createColourUI } from './colourui.js';
+import { store } from './store.js';
+import { createGallery } from './gallery.js';
+import { createSelection } from './select.js';
+import { createLayerTransform } from './layerxform.js';
+import { createAdjust } from './adjust.js';
+import { createActions } from './actionsui.js';
+import { createGestures } from './gestures.js';
+import { createAnim } from './anim.js';
 import { createTakes } from './take.js';
 import { createJointBalls } from './joints.js';
+import { createAiFix } from './aifix.js';
+import { createJointDust } from './dust.js';
 import { createTips, createHints } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
 const device = $('device');
 const screenEl = $('screen');
-const paintCanvas = $('paint');
 const stage = $('stage');
 const ctx = stage.getContext('2d');
 const video = $('video');
 const overlay = $('overlay');
 const octx = overlay.getContext('2d');
-const painter = new Painter(paintCanvas, $('strokeLayer'));
+// The artwork: layers, undo, saving. The live character (stage) is one of its layers.
+const studio = createStudio({
+  workspace: $('workspace'), stroke: $('strokeLayer'), stage, bgLayer: $('bgLayer'), toast,
+  bgImage: () => bgImage, isRigVisible: () => $('optShow').checked,
+});
+const painter = new Painter(studio, $('strokeLayer'));
+painter.onError = (m) => toast(m, 3500);
+const library = createLibrary();
 const rig = new Rig();
 const jointFilter = new JointFilter();
 const renderer = createRenderer();
@@ -76,9 +97,11 @@ function fitDevice() {
   const ws = $('workspace');
   const w = Math.round(ws.offsetWidth * s * dpr);
   const h = Math.round(ws.offsetHeight * s * dpr);
-  painter.resize(w, h);
   stage.width = w;
   stage.height = h;
+  // A screen-sized artwork follows the window; the first call also starts the default artwork.
+  if (!studio.doc) studio.create({ id: 'default', name: 'Playground', screen: true, width: w, height: h, bgImageOn: true });
+  else studio.resizeScreen(w, h);
 }
 addEventListener('resize', fitDevice);
 fitDevice();
@@ -90,7 +113,7 @@ function toScreen(e) {
 }
 
 // ---------- persistent settings (survive live reload) ----------
-const SETTINGS = ['prefLight', 'prefRightHand', 'prefCursor', 'prefSidebar', 'prefReference', 'optShow', 'optBody', 'optFace', 'optMirror', 'optSkeleton', 'optLegRest', 'optMesh', 'optWeights', 'optCloth', 'prefAnim', 'optHold', 'holdTime', 'optCorrect', 'smoothing', 'bounce', 'follow', 'charScale', 'brushSize', 'brushOpacity'];
+const SETTINGS = ['prefLight', 'prefRightHand', 'prefCursor', 'prefSidebar', 'prefReference', 'optShow', 'optBody', 'optFace', 'optMirror', 'optSkeleton', 'optLegRest', 'optMesh', 'optWeights', 'optCloth', 'prefAnim', 'optHold', 'holdTime', 'optCorrect', 'optDust', 'dustDensity', 'dustSize', 'smoothing', 'bounce', 'follow', 'charScale', 'brushSize', 'brushOpacity'];
 try {
   const saved = JSON.parse(localStorage.getItem('rig.settings') || '{}');
   for (const id of SETTINGS) {
@@ -127,6 +150,8 @@ function applyPrefs() {
     const f = FEELS[b.dataset.feel];
     b.classList.toggle('active', Math.abs(f.smooth - $('smoothing').value) < 0.02 && Math.abs(f.bounce - $('bounce').value) < 0.02 && Math.abs(f.follow - $('follow').value) < 0.02);
   }
+  $('dustDensityOut').textContent = `${Math.round($('dustDensity').value * 100)}%`;
+  $('dustSizeOut').textContent = `${Math.round($('dustSize').value * 100)}%`;
   $('holdTimeOut').textContent = `${Number($('holdTime').value).toFixed(1)}s`;
   $('charScaleOut').textContent = `${Math.round($('charScale').value * 100)}%`;
 }
@@ -143,11 +168,12 @@ for (const input of document.querySelectorAll('.slider-row input[data-fmt]')) {
 }
 
 // ---------- popovers ----------
-const popovers = [$('actionsPanel'), $('layersPanel')];
+const popovers = [$('actionsPanel'), $('layersPanel'), $('brushPanel'), $('colorPanel'), $('adjMenu')];
 function closePopovers() {
   for (const p of popovers) p.classList.add('hidden');
   $('btnActions').classList.remove('active');
   $('btnLayers').classList.remove('active');
+  document.querySelectorAll('.tool.active, #btnColor').forEach((b) => b.classList.remove('open'));
 }
 function togglePopover(panel) {
   const opening = panel.classList.contains('hidden');
@@ -160,7 +186,7 @@ function togglePopover(panel) {
   const right = (ar.right - sr.left) / state.scale;
   panel.classList.remove('hidden');
   const w = panel.offsetWidth;
-  panel.style.left = `${Math.max(8, Math.min(SCREEN_W - w - 8, panel.id === 'layersPanel' ? right - w + 6 : left - 18))}px`;
+  panel.style.left = `${Math.max(8, Math.min(SCREEN_W - w - 8, ['layersPanel', 'brushPanel', 'colorPanel'].includes(panel.id) ? right - w + 6 : left - 18))}px`;
   anchor.classList.add('active');
 }
 $('btnActions').addEventListener('click', () => togglePopover($('actionsPanel')));
@@ -185,11 +211,18 @@ for (const b of document.querySelectorAll('.seg-btn')) {
 // ---------- tools, colour, sidebar ----------
 for (const b of document.querySelectorAll('.tool')) {
   b.addEventListener('click', () => {
+    const same = painter.tool === b.dataset.tool;
     painter.tool = b.dataset.tool;
     for (const x of document.querySelectorAll('.tool')) x.classList.toggle('active', x === b);
+    useBrushFor(painter.tool);
+    // Tap the tool you are already using to open its brushes, like Procreate.
+    if (same) document.dispatchEvent(new CustomEvent('open-brushes', { detail: b }));
   });
 }
-$('btnColor').addEventListener('click', () => $('colorInput').click());
+$('btnColor').addEventListener('click', () => {
+  colourUI.sync();
+  togglePopover($('colorPanel'));
+});
 function setColor(hex) {
   painter.color = hex;
   $('colorInput').value = hex;
@@ -197,6 +230,8 @@ function setColor(hex) {
 }
 $('colorInput').addEventListener('input', () => setColor($('colorInput').value));
 setColor('#000000');
+const colourUI = createColourUI({ getColour: () => painter.color, setColour: setColor, toast });
+painter.onStroke = () => colourUI.used();
 
 let hudTimer;
 function hud(text) {
@@ -214,12 +249,13 @@ $('btnModify').addEventListener('click', () => {
 });
 painter.onPick = (hex) => {
   setColor(hex);
+  colourUI.pickedExternally(hex);
   painter.picking = false;
   $('btnModify').classList.remove('active');
 };
 // In a take, undo/redo step through rig changes; otherwise through painting.
-const undo = () => (typeof takes !== 'undefined' && takes.undo()) || (painter.undo() && toast('Undo', 700));
-const redo = () => (typeof takes !== 'undefined' && takes.redo()) || (painter.redo() && toast('Redo', 700));
+const undo = () => (typeof takes !== 'undefined' && takes.undo()) || (studio.undo() && toast('Undo', 700));
+const redo = () => (typeof takes !== 'undefined' && takes.redo()) || (studio.redo() && toast('Redo', 700));
 $('btnUndo').addEventListener('click', undo);
 $('btnRedo').addEventListener('click', redo);
 addEventListener('keydown', (e) => {
@@ -235,9 +271,30 @@ workspace.addEventListener('pointerdown', (e) => {
   // Like Procreate, a tap on the canvas while a popover is open just closes it.
   if (popovers.some((p) => !p.classList.contains('hidden'))) return closePopovers();
   workspace.setPointerCapture(e.pointerId);
+  const tool = toolRoute();
+  if (tool) return tool.down(e);
   painter.down(e);
+  // Touch and hold without moving picks the colour under the brush (the stroke is dropped).
+  clearTimeout(holdTimer);
+  if (actions.prefs.hold && painter.busy && painter.tool === 'brush') {
+    const at = { x: e.clientX, y: e.clientY };
+    holdMove = at;
+    holdTimer = setTimeout(() => {
+      if (!painter.busy || Math.hypot(holdMove.x - at.x, holdMove.y - at.y) > 6) return;
+      painter.cancelStroke();
+      const hex = painter.sample(painter.toCanvas(e));
+      setColor(hex);
+      colourUI.pickedExternally(hex);
+      toast(`Picked ${hex.toUpperCase()}`, 900);
+    }, 650);
+  }
 });
+let holdTimer = 0;
+let holdMove = { x: 0, y: 0 };
 workspace.addEventListener('pointermove', (e) => {
+  holdMove = { x: e.clientX, y: e.clientY };
+  const tool = toolRoute();
+  if (tool) return tool.move(e);
   painter.move(e);
   // Rig mode: no brush circle; the cursor says what a tap or drag will do.
   if (takes.brushActive()) {
@@ -248,13 +305,13 @@ workspace.addEventListener('pointermove', (e) => {
   workspace.style.cursor = '';
   if ($('prefCursor').checked && e.pointerType !== 'touch') {
     const p = toScreen(e);
-    const d = painter.size;
+    const d = painter.size * (painter.dynamic ? 1 : studio.view.s);
     Object.assign(cursor.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${d}px`, height: `${d}px` });
     cursor.classList.remove('hidden');
   }
 });
-workspace.addEventListener('pointerup', () => painter.up());
-workspace.addEventListener('pointercancel', () => painter.up());
+workspace.addEventListener('pointerup', (e) => (clearTimeout(holdTimer), toolRoute() ? toolRoute().up(e) : painter.up()));
+workspace.addEventListener('pointercancel', (e) => (toolRoute() ? toolRoute().up(e) : painter.up()));
 workspace.addEventListener('pointerleave', () => {
   cursor.classList.add('hidden');
   takes.hover(null);
@@ -269,16 +326,8 @@ function imageFromSrc(src) {
     img.src = src;
   });
 }
-$('insertPhoto').addEventListener('change', async (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  painter.insertImage(await imageFromSrc(URL.createObjectURL(f)));
-  e.target.value = '';
-  closePopovers();
-});
-$('btnFlipH').addEventListener('click', () => painter.flip(true));
-$('btnFlipV').addEventListener('click', () => painter.flip(false));
-$('btnClearCanvas').addEventListener('click', () => painter.clear());
+$('btnFlipH').addEventListener('click', () => studio.flipCanvas(true));
+$('btnFlipV').addEventListener('click', () => studio.flipCanvas(false));
 
 // ---------- Background image layer (the scene the character is placed into) ----------
 const bgLayer = $('bgLayer');
@@ -290,7 +339,11 @@ function setBackground(src) {
 }
 setBackground(localStorage.getItem('rig.bg') || 'backgrounds/playground.jpg');
 function applyBgVisibility() {
-  bgLayer.style.visibility = $('layerBg').checked ? '' : 'hidden';
+  if (studio.doc) {
+    studio.doc.bg.imageVisible = $('layerBg').checked;
+    studio.layout();
+    studio.touch(false);
+  }
   try { localStorage.setItem('rig.bgOn', $('layerBg').checked ? '1' : '0'); } catch {}
 }
 try { $('layerBg').checked = localStorage.getItem('rig.bgOn') !== '0'; } catch {}
@@ -311,20 +364,7 @@ $('bgFile').addEventListener('change', (e) => {
 // Flatten visible layers (background, painting, character) into one canvas.
 const composite = document.createElement('canvas');
 function flatten() {
-  composite.width = stage.width;
-  composite.height = stage.height;
-  const c = composite.getContext('2d');
-  c.fillStyle = '#fff';
-  c.fillRect(0, 0, composite.width, composite.height);
-  if ($('layerBg').checked && bgImage.complete && bgImage.naturalWidth) {
-    // Same as the layer on screen: cover the canvas, centred.
-    const k = Math.max(composite.width / bgImage.naturalWidth, composite.height / bgImage.naturalHeight);
-    const w = bgImage.naturalWidth * k, h = bgImage.naturalHeight * k;
-    c.drawImage(bgImage, (composite.width - w) / 2, (composite.height - h) / 2, w, h);
-  }
-  if ($('layerPaint').checked) c.drawImage(paintCanvas, 0, 0);
-  if ($('optShow').checked) c.drawImage(stage, 0, 0);
-  return composite;
+  return studio.flatten({ into: composite });
 }
 function download(href, name) {
   const a = document.createElement('a');
@@ -333,10 +373,8 @@ function download(href, name) {
   a.click();
 }
 const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-$('btnSharePng').addEventListener('click', () => download(flatten().toDataURL('image/png'), `artwork-${stamp()}.png`));
 
 // ---------- Layers ----------
-$('layerPaint').addEventListener('input', () => (paintCanvas.style.visibility = $('layerPaint').checked ? '' : 'hidden'));
 $('layerRig').addEventListener('input', () => {
   $('optShow').checked = $('layerRig').checked;
   applyPrefs();
@@ -449,12 +487,7 @@ async function startCamera() {
     jointFilter.reset();
     $('btnCamera').textContent = 'Stop camera';
     setStatus('tracking', true);
-    let checked = false;
-    try { checked = localStorage.getItem(`rig.checkDone.${choice}`) === '1'; } catch {}
-    if (!checked && activePuppet()) {
-      closePopovers();
-      rigCheck.start();
-    }
+    // The rig check and AI joint fixes are optional: Actions › Rig › Run rig check, or Fix joints on a take.
   } catch (err) {
     console.error(err);
     toast(`Couldn't start the camera: ${err.message || err}`, 5000);
@@ -670,6 +703,7 @@ function viewForYaw(yaw, invert) {
 }
 const correctives = createCorrectives();
 const jointBalls = createJointBalls();
+const jointDust = createJointDust(jointBalls);
 const sources = {}; // key → { def, img }, kept for rebuilding
 const overlapOn = () => document.getElementById('labOverlap')?.checked !== false;
 
@@ -769,6 +803,163 @@ async function drawingToCanvas(file) {
   clearOuterWhite(c);
   return c;
 }
+
+// ---------- the artwork: brushes, layers, saving ----------
+const brushUI = createBrushUI({ library, painter, toast });
+document.addEventListener('open-brushes', (e) => {
+  const btn = e.detail;
+  brushUI.open(painter.tool);
+  $('brushPanel').dataset.anchor = btn.id;
+  togglePopover($('brushPanel'));
+  $('brushPanel').classList.contains('hidden') || btn.classList.add('active');
+});
+// Each tool remembers its brush, and each brush remembers the size and opacity you last used with it.
+// Which tool, if any, takes the pointer instead of the brush.
+function toolRoute() {
+  if (selection.active) return selection;
+  if (lxform.active) return lxform;
+  if (adjust.liquifying) {
+    return {
+      down: (e) => adjust.liquifyDown(e, painter.toCanvas(e)),
+      move: (e) => adjust.liquifyMove(e, painter.toCanvas(e)),
+      up: () => adjust.liquifyUp(),
+    };
+  }
+  return null;
+}
+// Opening one tool closes the others (a transform in progress is finished, an adjustment is cancelled).
+function leaveTools(keep) {
+  if (keep !== 'selection' && selection.active) selection.exit();
+  if (keep !== 'transform' && lxform.active) lxform.finish(true);
+  if (keep !== 'adjust' && adjust.active) adjust.cancel();
+  closePopovers();
+}
+function useBrushFor(tool) {
+  const b = library.toolBrush(tool);
+  painter.brush = b;
+  const used = library.used(b.id);
+  $('brushSize').value = used?.size ?? b.size;
+  $('brushOpacity').value = used?.opacity ?? b.opacity;
+  applyPrefs();
+  saveSettings();
+}
+useBrushFor('brush');
+for (const id of ['brushSize', 'brushOpacity']) {
+  $(id).addEventListener('input', () => library.remember(painter.brush.id, Number($('brushSize').value), Number($('brushOpacity').value)));
+}
+
+function fillLayer(l) {
+  if (!l.canvas) return;
+  const before = studio.grab(l.canvas);
+  const g = l.ctx;
+  g.save();
+  g.fillStyle = painter.color;
+  if (l.alphaLock) g.globalCompositeOperation = 'source-atop';
+  g.fillRect(0, 0, l.canvas.width, l.canvas.height);
+  g.restore();
+  studio.commitWhole('Fill layer', l, before);
+}
+function invertLayer(l) {
+  if (!l.canvas) return;
+  const before = studio.grab(l.canvas);
+  const im = studio.grab(l.canvas);
+  for (let i = 0; i < im.data.length; i += 4) {
+    im.data[i] = 255 - im.data[i];
+    im.data[i + 1] = 255 - im.data[i + 1];
+    im.data[i + 2] = 255 - im.data[i + 2];
+  }
+  l.ctx.putImageData(im, 0, 0);
+  studio.commitWhole('Invert', l, before);
+}
+const selection = createSelection({ studio, workspace: $('workspace'), toast, getColour: () => painter.color });
+const lxform = createLayerTransform({ studio, toast, getSelection: () => studio.selection, clearSelection: () => selection.clear() });
+const adjust = createAdjust({
+  studio, toast, getSelection: () => studio.selection,
+  onMode: (on) => on && closePopovers(),
+});
+const layersUI = createLayersUI({
+  studio, toast,
+  hooks: {
+    fill: fillLayer, invert: invertLayer,
+    selectLayer: (l) => selection.fromLayer(l),
+    copyLayer: (l) => selection.copy(l),
+    clear: (l) => (studio.selection ? selection.eraseSelection(l) : studio.clearLayer(l.id)),
+  },
+});
+$('btnSelection').addEventListener('click', () => {
+  if (selection.active) return selection.exit();
+  leaveTools('selection');
+  selection.enter();
+});
+$('btnAdjust').addEventListener('click', () => {
+  if (adjust.active) adjust.cancel();
+  leaveTools('adjust');
+  togglePopover(adjust.menu);
+});
+const actions = createActions({
+  studio, painter, selection, toast, stage, bgImage: () => bgImage,
+  getColour: () => painter.color, closePopovers,
+  setDynamic: (v) => (painter.dynamic = v),
+});
+createGestures({
+  studio, screenEl, workspace: $('workspace'), painter, undo, redo,
+  prefs: () => actions.prefs, isRigEditing: () => takes.editing,
+});
+const anim = createAnim({
+  studio, toast,
+  leaveRigTimeline: () => {
+    if ($('prefAnim').checked) {
+      $('prefAnim').checked = false;
+      $('prefAnim').dispatchEvent(new Event('input'));
+    }
+  },
+});
+// The two timelines do not share the bottom of the screen.
+$('prefAnim').addEventListener('input', () => $('prefAnim').checked && anim.setEnabled(false));
+// Choosing a brush, smudge or eraser leaves the other tools.
+for (const b of document.querySelectorAll('.tool')) b.addEventListener('click', () => leaveTools('paint'));
+// The Layers popover shows the layers of the open artwork; rows are built when it opens.
+$('btnLayers').addEventListener('click', () => !$('layersPanel').classList.contains('hidden') && layersUI.render());
+
+$('bgColourInput').addEventListener('input', (e) => {
+  studio.doc.bg.color = e.target.value;
+  studio.doc.bg.transparent = false;
+  studio.layout();
+  studio.touch(false);
+});
+// Keep the panel's own controls in step with whichever artwork is open.
+studio.on('doc', () => {
+  $('layerBg').checked = studio.doc.bg.imageVisible;
+  $('bgColourInput').value = studio.doc.bg.color;
+});
+const gallery = createGallery({
+  studio, toast, bgImage: () => bgImage,
+  screenSize: () => ({ w: stage.width, h: stage.height }),
+  onOpen: () => {
+    layersUI.render();
+    closePopovers();
+  },
+});
+$('btnGallery').addEventListener('click', () => {
+  closePopovers();
+  gallery.open();
+});
+// Pick up where you left off: reopen the last artwork.
+studio.hold(true);
+(async () => {
+  try {
+    const id = localStorage.getItem('promove.current');
+    const rec = id && store.available ? await store.get(id) : null;
+    if (rec) {
+      await studio.load(rec);
+      if (studio.doc.screen) studio.resizeScreen(stage.width, stage.height);
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    studio.hold(false);
+  }
+})();
 
 // ---------- start a character: upload (PNG, JPG, SVG, PSD) or sketch your own ----------
 // An SVG is drawn at a fixed size, whatever its own width and height say.
@@ -885,12 +1076,9 @@ function startSketch() {
   sketch.rigWas = $('layerRig').checked;
   $('layerRig').checked = false;
   $('layerRig').dispatchEvent(new Event('input'));
-  if (!$('layerPaint').checked) {
-    $('layerPaint').checked = true;
-    $('layerPaint').dispatchEvent(new Event('input'));
-  }
+  // A fresh layer, so nothing already drawn is touched.
+  sketch.layer = studio.addLayer('Sketch');
   document.querySelector('.tool[data-tool="brush"]')?.click();
-  painter.clear();
   if (takes.camOpen) takes.toggleCamera();
   $('sketchGuide').classList.remove('hidden');
   $('sketchBar').classList.remove('hidden');
@@ -898,6 +1086,8 @@ function startSketch() {
 }
 function endSketch({ restoreRig = true } = {}) {
   sketch.on = false;
+  if (sketch.layer && studio.byId(sketch.layer.id)) studio.deleteLayer(sketch.layer.id);
+  sketch.layer = null;
   $('sketchGuide').classList.add('hidden');
   $('sketchBar').classList.add('hidden');
   document.body.classList.remove('sketching');
@@ -908,8 +1098,9 @@ function endSketch({ restoreRig = true } = {}) {
 }
 // The drawn pixels, cropped to what was drawn and scaled to the size the rest of the app expects.
 function sketchToCanvas() {
-  const { width: W, height: H } = paintCanvas;
-  const d = paintCanvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, H).data;
+  const src = sketch.layer.canvas;
+  const { width: W, height: H } = src;
+  const d = src.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, W, H).data;
   let x0 = W, y0 = H, x1 = -1, y1 = -1;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -934,7 +1125,7 @@ function sketchToCanvas() {
   c.height = Math.round(h * k);
   const g = c.getContext('2d');
   g.imageSmoothingQuality = 'high';
-  g.drawImage(paintCanvas, x0, y0, w, h, 0, 0, c.width, c.height);
+  g.drawImage(src, x0, y0, w, h, 0, 0, c.width, c.height);
   return c;
 }
 $('sketchDone').addEventListener('click', async () => {
@@ -944,8 +1135,7 @@ $('sketchDone').addEventListener('click', async () => {
   $('sketchGuide').classList.add('hidden');
   const built = await buildCharacter(c, { name: 'My sketch' });
   if (built) {
-    painter.clear(); // the sketch is now the character; Layer 1 is a blank page again
-    endSketch();
+    endSketch(); // the sketch is now the character; its layer goes away
   } else {
     $('sketchBar').classList.remove('hidden'); // backed out of the joints: keep sketching
     $('sketchGuide').classList.remove('hidden');
@@ -1063,6 +1253,10 @@ function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = 
     if (alpha === 1 && view.id === 'front' && $('optCorrect').checked) correctives.draw(target, rig, P);
     // Round, colour-matched joints that fade in as a joint bends or stretches.
     if ($('labBalls')?.checked !== false) jointBalls.draw(target, p, rig, P, { alpha, flip: view.flip });
+    // Optional: tiny dots in the character's own colours fill bent joints (off unless switched on).
+    if ($('optDust').checked) {
+      jointDust.draw(target, p, rig, P, { alpha, flip: view.flip, density: Number($('dustDensity').value), size: Number($('dustSize').value), time: performance.now() / 1000 });
+    }
     return P;
   }
   if (basicCanvas.width !== W || basicCanvas.height !== H) {
@@ -1152,7 +1346,17 @@ function setTransform(on) {
     hints.show('transform', xform, 'Drag inside the box to <b>move</b> the character. Drag a <b>corner</b> to resize. It applies to every frame.', 'right');
   } else hints.hide();
 }
-$('btnTransform').addEventListener('click', () => setTransform(xform.classList.contains('hidden')));
+// Transform moves the layer you are on; with the Motion Rig layer (or a take open) it moves the character.
+$('btnTransform').addEventListener('click', () => {
+  if (lxform.active) return lxform.finish(true);
+  const l = studio.active;
+  if (l?.type === 'paint' && !takes.editing && xform.classList.contains('hidden')) {
+    leaveTools('transform');
+    if (lxform.begin()) $('btnTransform').classList.add('active');
+    return;
+  }
+  setTransform(xform.classList.contains('hidden'));
+});
 $('xformDone').addEventListener('click', () => setTransform(false));
 $('xformReset').addEventListener('click', () => {
   Object.assign(place, PLACE_DEFAULT);
@@ -1199,6 +1403,7 @@ const tips = createTips(screenEl);
 const hints = createHints(screenEl);
 const takes = createTakes({
   hints,
+  onAiFix: () => aiFix.start(),
   // What the capture bar's status light shows.
   status: () => {
     const live = state.source !== 'none';
@@ -1231,6 +1436,15 @@ const takes = createTakes({
   onOpenChange: (open) => open && closePopovers(),
 });
 window.takes = takes;
+window.studio = studio; // for the console and tests
+const aiFix = createAiFix({
+  rig,
+  takes,
+  correctives,
+  toast,
+  renderPose: (target, W, H, pose) => drawPose(target, W, H, pose, {}, thumbRenderer),
+});
+
 
 // Pose brush: in Rig mode, tap a part on the canvas to select it and drag to bend it.
 function stagePoint(e) {
@@ -1339,12 +1553,22 @@ function watchHold(now, dt, live) {
   }
 }
 
-function drawGapMarks(target, regions) {
+// Green: the joint is fine. Yellow: a small break may show. Red: a real break (what AI repair fixes).
+const GAP_COLOURS = { clean: [52, 199, 89], mild: [255, 204, 0], strong: [255, 59, 48] };
+function drawGapMarks(target, hinges) {
   target.save();
   target.setTransform(1, 0, 0, 1, 0, 0);
-  for (const { x, y, r } of regions) {
-    target.fillStyle = 'rgba(255, 59, 48, 0.18)';
-    target.strokeStyle = 'rgba(255, 59, 48, 0.9)';
+  for (const { x, y, r, level } of hinges) {
+    const [cr, cg, cb] = GAP_COLOURS[level];
+    if (level === 'clean') {
+      target.fillStyle = `rgba(${cr}, ${cg}, ${cb}, 0.85)`;
+      target.beginPath();
+      target.arc(x, y, Math.max(3, r * 0.1), 0, Math.PI * 2);
+      target.fill();
+      continue;
+    }
+    target.fillStyle = `rgba(${cr}, ${cg}, ${cb}, 0.18)`;
+    target.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, 0.9)`;
     target.lineWidth = Math.max(2, r * 0.04);
     target.setLineDash([r * 0.12, r * 0.08]);
     target.beginPath();
@@ -1523,7 +1747,8 @@ function frame(now) {
   if (P && !shown?.image) drawRigView(ctx, activePuppet(), { mesh: $('optMesh').checked, weights: $('optWeights').checked });
   if ($('optSkeleton').checked && P) drawSkeleton(ctx, P);
   // Where the AI would repair this pose (joints bent far from the drawing).
-  if (P && activePuppet() && $('tlShowGaps').checked) drawGapMarks(ctx, gapRegions(shown?.pose || rig.getPose(), P, rig.rest));
+  if (P && aiFix.running && shown?.pose) aiFix.draw(ctx, P, shown.pose, now);
+  if (P && activePuppet() && $('tlShowGaps').checked) drawGapMarks(ctx, hingeLevels(shown?.pose || rig.getPose(), P, rig.rest));
   if (recorder) flatten();
   requestAnimationFrame(frame);
 }

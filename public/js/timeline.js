@@ -379,7 +379,7 @@ export function createTimeline({ rig, renderPose, toast, character }) {
       if (mode === 'gaps') {
         await fixGapsWithComfy({
           poses, renderPose, rest: rig.rest, signal: redrawing.signal, onFrame,
-          settings: { denoise: Number($('tlFixStrength').value), prompt: DEFAULT_PROMPT, fast: comfy.cpu },
+          settings: { denoise: Number($('tlFixStrength').value), mild: $('tlFixMild').checked, prompt: DEFAULT_PROMPT, fast: comfy.cpu },
         });
       } else {
         await redrawWithComfy({

@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <title>Motion Rig · Build 10</title>
+  <title>Pro Move</title>
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#1f1f21">
   <meta name="apple-mobile-web-app-title" content="Pro Move">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="studio.css">
 </head>
 <body>
 <div class="device" id="device">
@@ -20,7 +21,6 @@
   <!-- ============ Canvas (layers stack) ============ -->
   <main class="workspace" id="workspace">
     <div class="bg-layer" id="bgLayer"></div>
-    <canvas id="paint"></canvas>
     <canvas id="strokeLayer"></canvas>
     <canvas id="stage"></canvas>
     <div class="brush-cursor hidden" id="brushCursor"></div>
@@ -29,21 +29,21 @@
   <!-- ============ Procreate top bar ============ -->
   <header class="topbar">
     <div class="topbar-left">
-      <button class="tb-text" id="btnGallery" data-tip="Gallery (not part of this prototype)">Gallery</button>
+      <button class="tb-text" id="btnGallery" data-tip="Gallery: your artworks">Gallery</button>
       <button class="tb-icon cam-btn" id="btnCam" aria-label="Camera" data-tip="Camera: capture a pose, or record your movement"><svg viewBox="-76 -76 152 152" class="cam-mark"><g fill="currentColor" stroke="none"><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(0)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(45)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(90)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(135)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(180)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(225)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(270)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(315)"/></g><g fill="none" stroke="currentColor" stroke-width="6.5" stroke-linecap="round"><path d="M-25.0 0H25.0" transform="rotate(-25) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(20) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(65) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(110) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(155) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(200) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(245) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(290) translate(0 -60) rotate(18)"/></g></svg></button>
       <button class="tb-icon" id="btnTips" aria-label="Show tips" data-tip="Show every tip again"><svg viewBox="0 0 24 24" class="glyph"><circle cx="12" cy="12" r="9.5"/><path class="kn" stroke-width="2" d="M9.7 9.6a2.4 2.4 0 1 1 3.4 2.2c-.7.4-1.1.8-1.1 1.6M12 16.8v.01"/></svg></button>
       <button class="tb-icon" id="btnNewChar" aria-label="New character" data-tip="New character: upload a PNG, SVG or PSD, or sketch your own"><svg viewBox="0 0 24 24" class="glyph"><circle cx="9.6" cy="7.4" r="3.5"/><path d="M2.8 20.2c.2-3.7 2.9-6.2 6.8-6.2.9 0 1.7.1 2.5.4a5 5 0 0 0-.8 2.7c0 1.2.4 2.2 1 3.1z"/><path class="st" stroke-width="2.1" d="M18.2 12.6v6.4M15 15.8h6.4"/></svg></button>
       <button class="tb-icon" id="btnActions" aria-label="Actions" data-tip="Actions: camera and capture settings are in the Rig tab"><svg viewBox="0 0 24 24" class="glyph"><path d="M14.9 3.6a5 5 0 0 0-5.1 6.4l-6 6a1.9 1.9 0 0 0 2.7 2.7l6-6a5 5 0 0 0 6.4-5.1l-2.9 2.9-2.2-.6-.6-2.2z"/></svg></button>
-      <button class="tb-icon" aria-label="Adjustments" data-tip="Adjustments (not part of this prototype)"><svg viewBox="0 0 24 24" class="glyph"><path class="st" stroke-width="2.5" d="M4.6 19.4 14.4 9.6"/><path d="M17.6 2.4l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1zM8.2 2.8l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z"/></svg></button>
-      <button class="tb-icon" aria-label="Selection" data-tip="Selection (not part of this prototype)"><svg viewBox="0 0 24 24" class="glyph"><path class="st" stroke-width="2.5" d="M16.8 6.4c-.9-1.6-2.9-2.2-4.8-1.7-2.5.6-3.2 3-1 4.2l3.7 2.1c2.2 1.3 1.4 3.9-1.1 4.4-2 .4-4-.1-5.2-1.5"/></svg></button>
+      <button class="tb-icon" id="btnAdjust" aria-label="Adjustments" data-tip="Adjustments: colour, blur, sharpen, noise and more"><svg viewBox="0 0 24 24" class="glyph"><path class="st" stroke-width="2.5" d="M4.6 19.4 14.4 9.6"/><path d="M17.6 2.4l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1zM8.2 2.8l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z"/></svg></button>
+      <button class="tb-icon" id="btnSelection" aria-label="Selection" data-tip="Selection: select an area to paint or edit"><svg viewBox="0 0 24 24" class="glyph"><path class="st" stroke-width="2.5" d="M16.8 6.4c-.9-1.6-2.9-2.2-4.8-1.7-2.5.6-3.2 3-1 4.2l3.7 2.1c2.2 1.3 1.4 3.9-1.1 4.4-2 .4-4-.1-5.2-1.5"/></svg></button>
       <button class="tb-icon" id="btnTransform" aria-label="Transform" data-tip="Transform: move and resize the character in the scene"><svg viewBox="0 0 24 24" class="glyph"><path d="M20.6 3.4 3.7 10.6l6.4 2.3 2.4 6.5z"/></svg></button>
     </div>
     <span class="topbar-handle">&middot;&middot;&middot;</span>
     <div class="topbar-right">
       <button class="get-app hidden" id="btnGetApp" data-tip="Install Pro Move on this iPad as an app"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14"/></svg>Get app</button>
-      <button class="tb-icon tool active" data-tool="brush" aria-label="Paint" data-tip="Paint"><svg viewBox="0 0 24 24" class="glyph"><path class="st" stroke-width="1.7" d="M20.6 3.4 11.4 12.6"/><path d="M10.6 12.2c-2-.3-3.5 1-3.7 2.8-.1 1.2-.8 1.9-1.8 2.3 2.4 1.2 6 .8 7.1-1.8.6-1.3.2-2.6-.5-3.3z"/></svg></button>
-      <button class="tb-icon tool" data-tool="smudge" aria-label="Smudge" data-tip="Smudge"><svg viewBox="0 0 24 24" class="glyph"><g transform="rotate(22 12 12)"><rect x="9.2" y="2.4" width="3.6" height="10" rx="1.8"/><path d="M7.6 10.6h9.2a2.4 2.4 0 0 1 2.4 2.4v2.4c0 3.2-2.3 5.6-5.3 5.6h-2.4c-2.4 0-4.2-1.2-5-3.3l-1.3-3.4c-.5-1.2.4-2.4 1.6-2.4z"/></g></svg></button>
-      <button class="tb-icon tool" data-tool="eraser" aria-label="Erase" data-tip="Erase"><svg viewBox="0 0 24 24" class="glyph"><g transform="rotate(-45 12 12)"><path opacity=".5" d="M5.4 7.6h5.1v8.8H5.4a2.4 2.4 0 0 1-2.4-2.4v-4a2.4 2.4 0 0 1 2.4-2.4z"/><path d="M11.8 7.6h6.8a2.4 2.4 0 0 1 2.4 2.4v4a2.4 2.4 0 0 1-2.4 2.4h-6.8z"/></g></svg></button>
+      <button class="tb-icon tool active" id="toolBrush" data-tool="brush" aria-label="Paint" data-tip="Paint"><svg viewBox="0 0 24 24" class="glyph"><path class="st" stroke-width="1.7" d="M20.6 3.4 11.4 12.6"/><path d="M10.6 12.2c-2-.3-3.5 1-3.7 2.8-.1 1.2-.8 1.9-1.8 2.3 2.4 1.2 6 .8 7.1-1.8.6-1.3.2-2.6-.5-3.3z"/></svg></button>
+      <button class="tb-icon tool" id="toolSmudge" data-tool="smudge" aria-label="Smudge" data-tip="Smudge"><svg viewBox="0 0 24 24" class="glyph"><g transform="rotate(22 12 12)"><rect x="9.2" y="2.4" width="3.6" height="10" rx="1.8"/><path d="M7.6 10.6h9.2a2.4 2.4 0 0 1 2.4 2.4v2.4c0 3.2-2.3 5.6-5.3 5.6h-2.4c-2.4 0-4.2-1.2-5-3.3l-1.3-3.4c-.5-1.2.4-2.4 1.6-2.4z"/></g></svg></button>
+      <button class="tb-icon tool" id="toolEraser" data-tool="eraser" aria-label="Erase" data-tip="Erase"><svg viewBox="0 0 24 24" class="glyph"><g transform="rotate(-45 12 12)"><path opacity=".5" d="M5.4 7.6h5.1v8.8H5.4a2.4 2.4 0 0 1-2.4-2.4v-4a2.4 2.4 0 0 1 2.4-2.4z"/><path d="M11.8 7.6h6.8a2.4 2.4 0 0 1 2.4 2.4v4a2.4 2.4 0 0 1-2.4 2.4h-6.8z"/></g></svg></button>
       <button class="tb-icon" id="btnLayers" aria-label="Layers" data-tip="Layers: your takes, your drawing and the background"><svg viewBox="0 0 24 24" class="glyph"><rect x="9" y="3" width="12" height="12" rx="3"/><rect class="fr" stroke-width="1.8" x="3.9" y="9" width="11.2" height="12" rx="3"/></svg></button>
       <button class="tb-color" id="btnColor" aria-label="Colours" data-tip="Colour"></button>
       <input type="color" id="colorInput" value="#000000" class="sr-only" tabindex="-1">
@@ -93,30 +93,36 @@
     <!-- Add -->
     <div class="apane hidden" data-pane="add">
       <div class="group">
+        <label class="row link">Insert a file<input type="file" accept="image/*" id="insertFile" class="file-hit"></label>
         <label class="row link">Insert a photo<input type="file" accept="image/*" id="insertPhoto" class="file-hit"></label>
-        <div class="row link dim">Insert a file</div>
-        <div class="row link dim">Take a photo</div>
-        <div class="row link dim">Add text</div>
+        <label class="row link">Take a photo<input type="file" accept="image/*" capture="environment" id="takePhoto" class="file-hit"></label>
+        <button class="row link" id="btnAddText">Add text</button>
       </div>
       <div class="group">
-        <div class="row link dim">Cut</div>
-        <div class="row link dim">Copy</div>
-        <div class="row link dim">Copy canvas</div>
-        <div class="row link dim">Paste</div>
+        <button class="row link" id="btnCut">Cut</button>
+        <button class="row link" id="btnCopy">Copy</button>
+        <button class="row link" id="btnCopyCanvas">Copy canvas</button>
+        <button class="row link" id="btnPaste">Paste</button>
       </div>
     </div>
 
     <!-- Canvas -->
     <div class="apane hidden" data-pane="canvas">
       <div class="group">
-        <div class="row link dim">Crop &amp; resize</div>
-        <label class="row">Animation Assist<input type="checkbox" class="switch" id="prefAnim"></label>
-        <label class="row">Drawing guide<input type="checkbox" class="switch"></label>
+        <button class="row link" id="btnCrop">Crop &amp; resize</button>
+        <label class="row">Animation Assist<small>drawn frames</small><input type="checkbox" class="switch" id="prefFrames"></label>
+        <label class="row">Rig pose frames<small>Motion Rig timeline</small><input type="checkbox" class="switch" id="prefAnim"></label>
+        <label class="row">Drawing guide<input type="checkbox" class="switch" id="prefGuide"></label>
+        <button class="row link" id="btnGuideOpts">Edit drawing guide</button>
         <label class="row">Reference<input type="checkbox" class="switch" id="prefReference"></label>
       </div>
       <div class="group">
         <button class="row link" id="btnFlipH">Flip canvas horizontally</button>
         <button class="row link" id="btnFlipV">Flip canvas vertically</button>
+        <button class="row link" id="btnCanvasInfo">Canvas information</button>
+      </div>
+      <div class="group">
+        <button class="row link" id="btnClearLayer">Clear layer</button>
         <button class="row link" id="btnClearCanvas">Clear canvas</button>
       </div>
     </div>
@@ -125,21 +131,22 @@
     <div class="apane hidden" data-pane="share">
       <div class="group-title">Share image</div>
       <div class="group">
-        <div class="row link dim">Procreate</div>
-        <div class="row link dim">PSD</div>
-        <div class="row link dim">PDF</div>
-        <div class="row link dim">JPEG</div>
-        <button class="row link" id="btnSharePng">PNG</button>
+        <button class="row link" data-share="promove">Pro Move<small>.promove, every layer</small></button>
+        <button class="row link" data-share="psd">PSD<small>layers, opens in Procreate</small></button>
+        <button class="row link" data-share="pdf">PDF</button>
+        <button class="row link" data-share="jpg">JPEG</button>
+        <button class="row link" id="btnSharePng" data-share="png">PNG</button>
       </div>
     </div>
 
     <!-- Video -->
     <div class="apane hidden" data-pane="video">
       <div class="group">
-        <div class="row link dim">Time-lapse Replay</div>
-        <label class="row">Record Time-lapse<input type="checkbox" class="switch" checked></label>
-        <div class="row link dim">Export Time-lapse Video</div>
+        <label class="row">Record time-lapse<small id="lapseCount">0 frames recorded</small><input type="checkbox" class="switch" id="lapseOn" checked></label>
+        <button class="row link" id="lapseReplay">Time-lapse replay</button>
+        <button class="row link" id="lapseExport">Export time-lapse video<small>.webm</small></button>
       </div>
+      <p class="hint">A picture is kept after each change, up to about 240, and played back quickly.</p>
     </div>
 
     <!-- Prefs -->
@@ -147,21 +154,15 @@
       <div class="group">
         <label class="row">Light interface<input type="checkbox" class="switch" id="prefLight"></label>
         <label class="row">Right-hand interface<input type="checkbox" class="switch" id="prefRightHand"></label>
-        <label class="row">Dynamic brush scaling<input type="checkbox" class="switch" checked></label>
-        <label class="row">Project canvas<input type="checkbox" class="switch"></label>
+        <label class="row">Dynamic brush scaling<small>same size on screen when zoomed</small><input type="checkbox" class="switch" id="prefDynamic" checked></label>
         <label class="row">Brush cursor<input type="checkbox" class="switch" id="prefCursor" checked></label>
-        <div class="row link dim">Advanced cursor settings</div>
       </div>
       <div class="group">
-        <label class="row">Store brushes in iCloud<input type="checkbox" class="switch"></label>
+        <button class="row link" id="btnPressure">Pressure and smoothing</button>
+        <button class="row link" id="btnGestures">Gesture controls</button>
       </div>
       <div class="group">
-        <div class="row link dim">Pressure and Smoothing</div>
-        <div class="row link dim">Gesture controls</div>
-      </div>
-      <div class="group">
-        <div class="row slider-row"><span>Rapid undo delay</span><output>0.65s</output><input type="range" min="0" max="1.5" step="0.05" value="0.65" data-fmt="s"></div>
-        <div class="row slider-row"><span>Selection mask visibility</span><output>25.0%</output><input type="range" min="0" max="100" step="0.5" value="25" data-fmt="%"></div>
+        <div class="row slider-row"><span>Selection mask visibility</span><output id="prefSelVisOut">25.0%</output><input type="range" id="prefSelVis" min="0" max="100" step="0.5" value="25"></div>
       </div>
       <div class="group">
         <label class="row">Size &amp; Opacity sidebar<input type="checkbox" class="switch" id="prefSidebar" checked></label>
@@ -226,6 +227,12 @@
           <label class="row hidden" id="rowCustom"><span id="customName">My drawing</span><input type="radio" name="charChoice" value="custom" class="radio"></label>
           <label class="row">Basic figure<input type="radio" name="charChoice" value="basic" class="radio"></label>
         </div>
+        <div class="group-title">Joint dust</div>
+        <div class="group">
+          <label class="row">Joint dust<small>tiny dots in your colours fill bent joints</small><input type="checkbox" class="switch" id="optDust"></label>
+          <div class="row slider-row"><span>Density</span><output id="dustDensityOut"></output><input type="range" id="dustDensity" min="0.4" max="1.6" step="0.05" value="1"></div>
+          <div class="row slider-row"><span>Dot size</span><output id="dustSizeOut"></output><input type="range" id="dustSize" min="0.6" max="2" step="0.05" value="1"></div>
+        </div>
         <div class="group">
           <label class="row link">New character from a drawing…<small>PNG, SVG, PSD</small><input type="file" accept="image/*,.svg,.psd,.procreate,image/vnd.adobe.photoshop" id="newCharFile" class="file-hit"></label>
           <button class="row link" id="btnSketchChar">Sketch a new character<small>draw it here</small></button>
@@ -254,25 +261,71 @@
   <!-- ============ Layers popover ============ -->
   <section class="popover layers hidden" id="layersPanel" data-anchor="btnLayers">
     <div class="pop-arrow"></div>
-    <div class="layers-head"><h2 class="pop-title">Layers</h2></div>
+    <div class="layers-head">
+      <h2 class="pop-title">Layers <small id="layersCount"></small></h2>
+      <button class="lhead-btn" id="layerAddGroup" aria-label="Group" data-tip="Put the selected layer in a group"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v9H4z"/></svg></button>
+      <button class="lhead-btn plus" id="layerAdd" aria-label="New layer" data-tip="New layer"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
     <div id="layersTakes"></div>
-    <label class="layer">
-      <span class="layer-thumb rig-thumb"></span>
-      <span class="layer-name">Motion Rig<small>Extension · live character</small></span>
-      <input type="checkbox" id="layerRig" checked>
-    </label>
-    <label class="layer active">
-      <span class="layer-thumb"></span>
-      <span class="layer-name">Layer 1<small>N</small></span>
-      <input type="checkbox" id="layerPaint" checked>
-    </label>
-    <label class="layer">
+    <div id="layerList" class="layer-list"></div>
+    <label class="layer bgrow">
       <span class="layer-thumb bg-thumb" id="bgThumb"></span>
       <span class="layer-name">Playground<small>Background image · <span class="bg-replace" data-tip="Use another picture as the scene">Replace<input type="file" accept="image/*" id="bgFile" class="file-hit"></span></small></span>
       <input type="checkbox" id="layerBg" checked aria-label="Show background" data-tip="Show or hide the background">
     </label>
-    <div class="layer bg">
+    <label class="layer bg bgcolour" data-tip="The paper colour behind every layer">
       <span class="layer-name">Background colour</span>
+      <input type="color" id="bgColourInput" class="file-hit" value="#ffffff">
+    </label>
+    <input type="checkbox" id="layerRig" class="sr-only" checked tabindex="-1">
+  </section>
+  <div class="layer-menu hidden" id="layerMenu"></div>
+
+  <!-- ============ Colours ============ -->
+  <section class="popover colourpanel hidden" id="colorPanel" data-anchor="btnColor" aria-label="Colours">
+    <div class="cp-top">
+      <button class="cp-big" id="cpPrimary" aria-label="Current colour"></button>
+      <button class="cp-big sec" id="cpSecondary" aria-label="Secondary colour, tap to swap" data-tip="Tap to swap with the current colour"></button>
+      <div class="cp-history" id="cpHistory" aria-label="Recent colours"></div>
+    </div>
+    <div class="cp-views">
+      <div data-view="disc" class="cp-center"><canvas id="cpDisc" width="264" height="264"></canvas></div>
+      <div data-view="classic" class="cp-center"><canvas id="cpSquare" width="264" height="190"></canvas></div>
+      <div id="cpHueRow" class="cp-hue-row"><input type="range" id="cpHue" class="cp-hue" min="0" max="360" step="1" value="0" aria-label="Hue"></div>
+      <div id="cpHarmony"><div id="cpHarmonyModes" class="cp-modes"></div><div id="cpHarmonySwatches" class="cp-sws"></div></div>
+      <div data-view="value"><div id="cpValues"></div><label class="cp-hexrow">Hex<input id="cpHex" type="text" maxlength="7" spellcheck="false"></label></div>
+      <div data-view="palettes">
+        <div id="cpPalList" class="cp-pals"></div>
+        <div id="cpPalSwatches" class="cp-sws big"></div>
+        <div class="cp-palbtns"><button id="cpPalEdit" class="btn">Remove colours</button><button id="cpPalDelete" class="btn hidden">Delete palette</button></div>
+      </div>
+    </div>
+    <nav id="cpTabs" class="cp-tabs">
+      <button data-tab="disc"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/></svg>Disc</button>
+      <button data-tab="classic"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 15 15 4"/></svg>Classic</button>
+      <button data-tab="harmony"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="6" r="1.6"/><circle cx="17.2" cy="15" r="1.6"/><circle cx="6.8" cy="15" r="1.6"/></svg>Harmony</button>
+      <button data-tab="value"><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="17" r="2"/></svg>Value</button>
+      <button data-tab="palettes"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg>Palettes</button>
+    </nav>
+  </section>
+
+  <section class="popover adjmenu hidden" id="adjMenu" data-anchor="btnAdjust" aria-label="Adjustments"></section>
+
+  <!-- ============ Brush Library ============ -->
+  <section class="popover brushpanel hidden" id="brushPanel" data-anchor="toolBrush">
+    <div class="pop-arrow"></div>
+    <div class="layers-head"><h2 class="pop-title" id="bpTitle">Brush Library</h2><button class="lhead-btn plus" id="bpNew" aria-label="New brush" data-tip="Make your own brush from this one"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
+    <input type="search" id="bpSearch" class="bp-search" placeholder="Search brushes" aria-label="Search brushes">
+    <div class="bp-body"><nav id="bpSets" class="bp-sets"></nav><div id="bpList" class="bp-list"></div></div>
+  </section>
+  <section class="sheet hidden" id="brushStudio" role="dialog" aria-label="Brush Studio">
+    <header class="sheet-bar">
+      <span class="sheet-title">Brush Studio</span>
+      <span class="bs-actions"><button class="tl-text" id="bsDuplicate">Duplicate</button><button class="tl-text hidden" id="bsReset">Reset</button><button class="tl-text hidden" id="bsDelete" style="color:#ff6159">Delete</button><button class="tl-text tl-add" id="bsDone">Done</button></span>
+    </header>
+    <div class="sheet-body bs-body">
+      <aside class="bs-side"><label class="bs-name"><span>Name</span><input id="bsName" type="text" maxlength="40"></label><div id="bsSliders"></div></aside>
+      <div class="bs-stage"><canvas id="bsPreview" width="900" height="200"></canvas><div class="bs-padwrap"><canvas id="bsPad" width="900" height="520"></canvas><button class="btn" id="bsPadClear">Clear pad</button></div><p class="hint">Draw on the pad to try the brush. Changes apply as you move the sliders.</p></div>
     </div>
   </section>
 
@@ -297,7 +350,8 @@
       <div class="row slider-row"><span>In-betweens per frame (export)</span><output id="tlBetweensOut">2</output><input type="range" id="tlBetweens" min="1" max="6" step="1" value="2"></div>
       <label class="row">Auto-capture while performing<input type="checkbox" class="switch" id="tlAuto"></label>
       <label class="row">Show AI redraws<input type="checkbox" class="switch" id="tlShowAI" checked></label>
-      <label class="row">Show gap areas<input type="checkbox" class="switch" id="tlShowGaps"></label>
+      <label class="row">Show gap areas<small>green fine, yellow mild, red repaired</small><input type="checkbox" class="switch" id="tlShowGaps"></label>
+      <label class="row">Repair mild gaps too<small>off: strong breaks only</small><input type="checkbox" class="switch" id="tlFixMild" checked></label>
       <div class="row slider-row"><span>Gap fix strength</span><output id="tlFixStrengthOut"></output><input type="range" id="tlFixStrength" min="0.3" max="0.85" step="0.01" value="0.55"></div>
       <div class="row slider-row"><span>AI redraw strength</span><output id="tlDenoiseOut"></output><input type="range" id="tlDenoise" min="0.2" max="0.75" step="0.01" value="0.35"></div>
       <button class="row link" id="tlFolder">Save frames to folder<small id="tlFolderName">Not set</small></button>
@@ -328,6 +382,60 @@
         <button class="btn" id="jeTemplate">Reset to template</button>
         <p class="hint" id="jeStatus" aria-live="polite"></p>
       </aside>
+    </div>
+  </section>
+
+  <!-- ============ Gallery ============ -->
+  <section class="gallery hidden" id="gallery" aria-label="Gallery">
+    <header class="gal-bar">
+      <button class="gal-btn hidden" id="galBack"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Gallery</button>
+      <h1 id="galTitle">Gallery</h1>
+      <span class="gal-sp"></span>
+      <button class="gal-btn" id="galSelect">Select</button>
+      <span class="gal-tools" id="galTools">
+        <label class="gal-btn">Import<input type="file" id="galImportFile" class="file-hit" accept=".psd,.promove,.json,.procreate,image/*"></label>
+        <label class="gal-btn">Photo<input type="file" id="galPhotoFile" class="file-hit" accept="image/*"></label>
+        <button class="gal-plus" id="galNew" aria-label="New canvas" data-tip="New canvas"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      </span>
+      <button class="gal-btn gal-close" id="galClose">Back to canvas</button>
+    </header>
+    <div class="gal-actions hidden" id="galActions">
+      <span id="galCount">Select artworks</span>
+      <span class="gal-acts">
+        <button data-do="stack"><svg viewBox="0 0 24 24"><rect x="6" y="8" width="13" height="11" rx="2"/><path d="M9 5h9a2 2 0 0 1 2 2v9"/></svg>Stack</button>
+        <button data-do="preview"><svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>Preview</button>
+        <button data-do="rename"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/></svg>Rename</button>
+        <button data-do="share"><svg viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4M5 11v9h14v-9"/></svg>Share</button>
+        <button data-do="duplicate"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>Duplicate</button>
+        <button data-do="delete" class="danger"><svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>Delete</button>
+      </span>
+    </div>
+    <div class="gal-grid" id="galGrid"></div>
+    <div class="gal-share hidden" id="galShare">
+      <b>Share as</b>
+      <button data-fmt="png">PNG</button><button data-fmt="jpg">JPEG</button><button data-fmt="psd">PSD (layers)</button><button data-fmt="pdf">PDF</button><button data-fmt="promove">Pro Move file</button>
+      <button class="cancel">Cancel</button>
+    </div>
+    <div class="gal-preview hidden" id="galPreview"><img id="galPreviewImg" alt=""><span id="galPreviewName"></span></div>
+    <div class="newcanvas hidden" id="newCanvas" role="dialog" aria-label="New canvas">
+      <div class="nc-card">
+        <header><button class="tl-text" id="ncCancel">Cancel</button><b>New canvas</b><button class="tl-text tl-add" id="ncCreate">Create</button></header>
+        <div class="nc-body">
+          <label class="nc-field wide"><span>Name</span><input id="ncName" type="text" placeholder="Untitled artwork" maxlength="60"></label>
+          <div class="nc-presets" id="ncPresets"></div>
+          <div class="nc-custom hidden" id="ncCustom">
+            <label class="nc-field"><span>Width (px)</span><input id="ncW" type="number" min="16" max="8192"></label>
+            <label class="nc-field"><span>Height (px)</span><input id="ncH" type="number" min="16" max="8192"></label>
+            <label class="nc-field"><span>DPI</span><input id="ncDpi" type="number" min="36" max="600"></label>
+          </div>
+          <div class="nc-row">
+            <label class="nc-field"><span>Colour profile</span><select id="ncProfile" class="row-select"><option>sRGB</option><option selected>Display P3</option><option>Adobe RGB</option></select></label>
+            <label class="nc-field"><span>Background</span><input id="ncBg" type="color" value="#ffffff"></label>
+            <label class="nc-field"><span>Transparent</span><input id="ncTransparent" type="checkbox" class="switch"></label>
+          </div>
+          <p class="nc-info" id="ncInfo"></p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -440,6 +548,27 @@
       <div class="onb-caption" aria-live="polite"><h2 id="onbTitle"></h2><p id="onbText"></p></div>
     </div>
   </section>
+
+  <!-- Optional AI joint fix: progress while it scans and repairs -->
+  <div class="aifix hidden" id="aiFix" role="status" aria-live="polite">
+    <span class="af-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></svg></span>
+    <span class="af-text"><b id="aiFixTitle"></b><small id="aiFixText"></small><span class="af-track"><i id="aiFixBar"></i></span></span>
+    <button class="btn" id="aiFixStop">Stop</button>
+  </div>
+
+  <!-- Tool bars: Selection, Adjustments, Transform, Liquify -->
+  <div class="toolbar hidden" id="selBar" aria-label="Selection tools"></div>
+  <div class="toolbar hidden" id="adjBar" aria-label="Adjustment"></div>
+  <div class="toolbar hidden" id="xfBar" aria-label="Transform layer"></div>
+
+  <!-- Animation Assist for drawn frames -->
+  <div class="animbar hidden" id="animBar" aria-label="Animation Assist"></div>
+  <div class="af-settings hidden" id="afSettings"></div>
+
+  <!-- A small dialog, filled in by whatever opens it -->
+  <div class="dlg hidden" id="dlg"></div>
+  <button class="zoom-pill hidden" id="zoomPill" data-tip="Zoom. Tap to fit the canvas">100%</button>
+  <button class="ui-show" id="uiShow" aria-label="Show the interface" data-tip="Bring the interface back"><svg viewBox="0 0 24 24"><path d="M5 9V5h4M19 9V5h-4M5 15v4h4M19 15v4h-4"/></svg></button>
 
   <div class="toast hidden" id="toast"></div>
 
