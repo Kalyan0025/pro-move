@@ -242,3 +242,6 @@ The layout was rebuilt around the canvas. Nothing was removed; controls moved.
 - **Scan and skeleton.** After a drawing arrives, a scan line sweeps down it, then the skeleton grows in joint by joint (from the pose model, or a template if no body is found). Drag any dot that is off, then **Build character**. The capture bar opens so the next step is to capture.
 
 Code: `public/js/onboarding.js` (tour and chooser), `public/js/editor.js` (scan and skeleton), `public/js/main.js` (upload, SVG and PSD handling, sketch mode). Tour pictures are in `public/onboarding/`.
+
+## Damage check: green, yellow, red
+**Timeline › Settings › Show gap areas** now rates every joint for the current pose: green (the cut parts still cover each other), yellow (a small break may show), red (a real break). AI repair (**Export › Fix gaps with AI**) fades in with the severity, so a repair no longer pops on in one frame when a joint crosses the line. **Repair mild gaps too** (on by default) can be switched off to repair red joints only. Code: `hingeLevels` in `public/js/comfy.js`.

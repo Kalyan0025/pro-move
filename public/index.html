@@ -297,7 +297,8 @@
       <div class="row slider-row"><span>In-betweens per frame (export)</span><output id="tlBetweensOut">2</output><input type="range" id="tlBetweens" min="1" max="6" step="1" value="2"></div>
       <label class="row">Auto-capture while performing<input type="checkbox" class="switch" id="tlAuto"></label>
       <label class="row">Show AI redraws<input type="checkbox" class="switch" id="tlShowAI" checked></label>
-      <label class="row">Show gap areas<input type="checkbox" class="switch" id="tlShowGaps"></label>
+      <label class="row">Show gap areas<small>green fine, yellow mild, red repaired</small><input type="checkbox" class="switch" id="tlShowGaps"></label>
+      <label class="row">Repair mild gaps too<small>off: strong breaks only</small><input type="checkbox" class="switch" id="tlFixMild" checked></label>
       <div class="row slider-row"><span>Gap fix strength</span><output id="tlFixStrengthOut"></output><input type="range" id="tlFixStrength" min="0.3" max="0.85" step="0.01" value="0.55"></div>
       <div class="row slider-row"><span>AI redraw strength</span><output id="tlDenoiseOut"></output><input type="range" id="tlDenoise" min="0.2" max="0.75" step="0.01" value="0.35"></div>
       <button class="row link" id="tlFolder">Save frames to folder<small id="tlFolderName">Not set</small></button>

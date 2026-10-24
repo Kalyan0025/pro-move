@@ -5,7 +5,7 @@ import { layeredSVG, layeredPSD, readLayeredPSD, readFlatPSD, downloadBlob, PART
 import { createOnboarding } from './onboarding.js';
 import { editJoints } from './editor.js';
 import { createTimeline } from './timeline.js';
-import { gapRegions } from './comfy.js';
+import { hingeLevels } from './comfy.js';
 import { createCorrectives } from './correctives.js';
 import { createRigCheck } from './rigcheck.js';
 import { FEELS } from './motion.js';
@@ -1339,12 +1339,22 @@ function watchHold(now, dt, live) {
   }
 }
 
-function drawGapMarks(target, regions) {
+// Green: the joint is fine. Yellow: a small break may show. Red: a real break (what AI repair fixes).
+const GAP_COLOURS = { clean: [52, 199, 89], mild: [255, 204, 0], strong: [255, 59, 48] };
+function drawGapMarks(target, hinges) {
   target.save();
   target.setTransform(1, 0, 0, 1, 0, 0);
-  for (const { x, y, r } of regions) {
-    target.fillStyle = 'rgba(255, 59, 48, 0.18)';
-    target.strokeStyle = 'rgba(255, 59, 48, 0.9)';
+  for (const { x, y, r, level } of hinges) {
+    const [cr, cg, cb] = GAP_COLOURS[level];
+    if (level === 'clean') {
+      target.fillStyle = `rgba(${cr}, ${cg}, ${cb}, 0.85)`;
+      target.beginPath();
+      target.arc(x, y, Math.max(3, r * 0.1), 0, Math.PI * 2);
+      target.fill();
+      continue;
+    }
+    target.fillStyle = `rgba(${cr}, ${cg}, ${cb}, 0.18)`;
+    target.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, 0.9)`;
     target.lineWidth = Math.max(2, r * 0.04);
     target.setLineDash([r * 0.12, r * 0.08]);
     target.beginPath();
@@ -1523,7 +1533,7 @@ function frame(now) {
   if (P && !shown?.image) drawRigView(ctx, activePuppet(), { mesh: $('optMesh').checked, weights: $('optWeights').checked });
   if ($('optSkeleton').checked && P) drawSkeleton(ctx, P);
   // Where the AI would repair this pose (joints bent far from the drawing).
-  if (P && activePuppet() && $('tlShowGaps').checked) drawGapMarks(ctx, gapRegions(shown?.pose || rig.getPose(), P, rig.rest));
+  if (P && activePuppet() && $('tlShowGaps').checked) drawGapMarks(ctx, hingeLevels(shown?.pose || rig.getPose(), P, rig.rest));
   if (recorder) flatten();
   requestAnimationFrame(frame);
 }
