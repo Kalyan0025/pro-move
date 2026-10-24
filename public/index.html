@@ -12,6 +12,7 @@
   <meta name="theme-color" content="#1f1f21">
   <meta name="apple-mobile-web-app-title" content="Pro Move">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="studio.css">
 </head>
 <body>
 <div class="device" id="device">
@@ -20,7 +21,6 @@
   <!-- ============ Canvas (layers stack) ============ -->
   <main class="workspace" id="workspace">
     <div class="bg-layer" id="bgLayer"></div>
-    <canvas id="paint"></canvas>
     <canvas id="strokeLayer"></canvas>
     <canvas id="stage"></canvas>
     <div class="brush-cursor hidden" id="brushCursor"></div>
@@ -260,27 +260,25 @@
   <!-- ============ Layers popover ============ -->
   <section class="popover layers hidden" id="layersPanel" data-anchor="btnLayers">
     <div class="pop-arrow"></div>
-    <div class="layers-head"><h2 class="pop-title">Layers</h2></div>
+    <div class="layers-head">
+      <h2 class="pop-title">Layers <small id="layersCount"></small></h2>
+      <button class="lhead-btn" id="layerAddGroup" aria-label="Group" data-tip="Put the selected layer in a group"><svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v9H4z"/></svg></button>
+      <button class="lhead-btn plus" id="layerAdd" aria-label="New layer" data-tip="New layer"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
     <div id="layersTakes"></div>
-    <label class="layer">
-      <span class="layer-thumb rig-thumb"></span>
-      <span class="layer-name">Motion Rig<small>Extension · live character</small></span>
-      <input type="checkbox" id="layerRig" checked>
-    </label>
-    <label class="layer active">
-      <span class="layer-thumb"></span>
-      <span class="layer-name">Layer 1<small>N</small></span>
-      <input type="checkbox" id="layerPaint" checked>
-    </label>
-    <label class="layer">
+    <div id="layerList" class="layer-list"></div>
+    <label class="layer bgrow">
       <span class="layer-thumb bg-thumb" id="bgThumb"></span>
       <span class="layer-name">Playground<small>Background image · <span class="bg-replace" data-tip="Use another picture as the scene">Replace<input type="file" accept="image/*" id="bgFile" class="file-hit"></span></small></span>
       <input type="checkbox" id="layerBg" checked aria-label="Show background" data-tip="Show or hide the background">
     </label>
-    <div class="layer bg">
+    <label class="layer bg bgcolour" data-tip="The paper colour behind every layer">
       <span class="layer-name">Background colour</span>
-    </div>
+      <input type="color" id="bgColourInput" class="file-hit" value="#ffffff">
+    </label>
+    <input type="checkbox" id="layerRig" class="sr-only" checked tabindex="-1">
   </section>
+  <div class="layer-menu hidden" id="layerMenu"></div>
 
   <!-- ============ Animation Assist timeline ============ -->
   <section class="timeline hidden" id="timeline">
