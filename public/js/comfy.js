@@ -170,18 +170,34 @@ export function jointPoint(P, joint) {
   return joint === 'headPivot' ? { x: P.neck.x * 0.8 + P.head.x * 0.2, y: P.neck.y * 0.8 + P.head.y * 0.2 } : P[joint];
 }
 
-// Areas to repair for a pose. P: solved joints (pixels) from renderPose; rest: the drawing's rest angles.
-export function gapRegions(pose, P, rest, threshold = 0.3) {
+// How sound each hinge is for a pose, as green / yellow / red:
+//   clean  (bend under the threshold): the cut parts still cover each other, nothing to repair
+//   mild   (up to twice the threshold): a small break may show; the joint balls or dust often cover it
+//   strong (beyond that): a real break, worth repairing
+// strength (0..1) rises smoothly from the first level that gets repaired, so a repair fades in
+// over several frames instead of popping on when a joint crosses the line.
+export function hingeLevels(pose, P, rest, threshold = 0.3, { mild = true } = {}) {
   if (!P || !rest) return [];
   const out = [];
+  const from = mild ? threshold : threshold * 2;
+  const ramp = threshold * 0.8;
   for (const [child, parent, joint, r] of GAP_HINGES) {
     const bend = hingeBend(pose, child, parent, rest);
-    if (Math.abs(bend) < threshold) continue;
+    const a = Math.abs(bend);
     // The neck hinge sits between the shoulder line and the head.
     const at = jointPoint(P, joint);
-    if (at) out.push({ x: at.x, y: at.y, r: r * P.T * (1 + Math.min(1, Math.abs(bend)) * 0.25), joint, child, parent, bend });
+    if (!at) continue;
+    const level = a < threshold ? 'clean' : a < threshold * 2 ? 'mild' : 'strong';
+    const u = Math.max(0, Math.min(1, (a - from) / ramp));
+    out.push({ x: at.x, y: at.y, r: r * P.T * (1 + Math.min(1, a) * 0.25), joint, child, parent, bend, level, strength: u * u * (3 - 2 * u) });
   }
   return out;
+}
+
+// Areas to repair for a pose. P: solved joints (pixels) from renderPose; rest: the drawing's rest angles.
+// mild: false repairs strong breaks only.
+export function gapRegions(pose, P, rest, threshold = 0.3, opts = {}) {
+  return hingeLevels(pose, P, rest, threshold, opts).filter((h) => h.strength > 0.04);
 }
 
 export function maskCanvas(w, h, regions) {
@@ -191,7 +207,8 @@ export function maskCanvas(w, h, regions) {
   const g = c.getContext('2d');
   g.fillStyle = '#000';
   g.fillRect(0, 0, w, h);
-  for (const { x, y, r } of regions) {
+  for (const { x, y, r, strength = 1 } of regions) {
+    g.globalAlpha = strength; // a weak break is only partly repainted
     const grad = g.createRadialGradient(x, y, r * 0.55, x, y, r);
     grad.addColorStop(0, '#fff');
     grad.addColorStop(1, 'rgba(255,255,255,0)');
@@ -200,6 +217,7 @@ export function maskCanvas(w, h, regions) {
     g.arc(x, y, r, 0, Math.PI * 2);
     g.fill();
   }
+  g.globalAlpha = 1;
   return c;
 }
 
@@ -266,7 +284,7 @@ export async function fixGapsWithComfy({ poses, renderPose, rest, settings, onFr
     fg.fillRect(0, 0, W, H);
     fg.drawImage(layer, 0, 0);
 
-    const regions = gapRegions(poses[i], P, rest, settings.threshold);
+    const regions = gapRegions(poses[i], P, rest, settings.threshold, { mild: settings.mild !== false });
     if (!regions.length) {
       out.push(frame);
       onFrame?.(i, frame, regions, P);
