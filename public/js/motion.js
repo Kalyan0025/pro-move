@@ -70,6 +70,26 @@ class AngleSpring extends SecondOrder {
 // Bones further down a limb, sprung relative to their parent so they trail slightly behind it.
 export const FOLLOWERS = { foreArmR: 'upperArmR', foreArmL: 'upperArmL', neck: 'spine', shinR: 'thighR', shinL: 'thighL' };
 
+// Each region of the body has its own character: the head trails a little more than the arms, forearms
+// are a touch quicker. Multiplies the follow spring's speed.
+const REGION = { neck: 0.85, foreArmR: 1.1, foreArmL: 1.1, shinR: 1.0, shinL: 1.0 };
+
+// How far a joint may fold, in radians, measured between a bone and its parent. Past about 80% of the
+// limit the angle eases toward it instead of stopping dead, so a limb never folds through itself.
+const LIMITS = [['foreArmR', 'upperArmR', 2.88], ['foreArmL', 'upperArmL', 2.88], ['shinR', 'thighR', 2.8], ['shinL', 'thighL', 2.8], ['neck', 'spine', 1.25]];
+export function limitJoints(targets, loosen = 0) {
+  for (const [child, parent, max0] of LIMITS) {
+    if (!(child in targets) || !(parent in targets)) continue;
+    const max = Math.min(3.0, max0 * (1 + loosen * 0.15));
+    const rel = wrap(targets[child] - targets[parent]);
+    const a = Math.abs(rel);
+    const knee = max * 0.8;
+    if (a <= knee) continue;
+    const eased = knee + (max - knee) * Math.tanh((a - knee) / (max - knee));
+    targets[child] = targets[parent] + Math.sign(rel) * eased;
+  }
+}
+
 // Named feels for the Rig tab. smooth: 0..0.95 (higher = slower, softer), bounce: cloth only, follow: limb lag.
 export const FEELS = {
   snappy: { smooth: 0.2, bounce: 0.15, follow: 0.1 },
@@ -100,11 +120,12 @@ export class MotionSystem {
     this.alpha = this.acc / STEP;
   }
 
-  tuning({ smooth = 0.55, follow = 0.35 }) {
+  tuning({ smooth = 0.55, follow = 0.35, overshoot = 0 }) {
     const f = 7.5 - smooth * 6; // 7.5 Hz (snappy) .. ~1.8 Hz (floaty)
     return {
       main: [f, 1, 0.2], // critically damped: eases in and out, never overshoots
-      follow: [f * (1 - follow * 0.45), 1, 0], // trails its parent a little, no bounce
+      // Trails its parent a little. With overshoot above 0 it swings past and settles (an underdamped spring).
+      follow: [f * (1 - follow * 0.45), 1 - 0.62 * Math.min(1, overshoot), 0],
       ratio: [f * 1.2, 1, 0],
       fast: [Math.max(10, f * 2.5), 1, 1], // blinks and mouth stay crisp
     };
@@ -134,7 +155,7 @@ export class MotionSystem {
       if (!(bone in targets)) continue;
       const rel = wrap(targets[bone] - targets[parent]);
       const s = this.rel[bone] || (this.rel[bone] = new AngleSpring(rel));
-      s.tune(...t.follow);
+      s.tune(t.follow[0] * (REGION[bone] || 1), t.follow[1], t.follow[2]);
       s.run(n, s.aim(rel));
       out[bone] = wrap(out[parent] + s.at(a));
     }

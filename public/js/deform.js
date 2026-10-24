@@ -169,7 +169,7 @@ export function createDeform() {
 
   return {
     // method: 'rigid' | 'weighted' | 'mush'. preserve: pin face, hands and shoes.
-    apply(puppet, piece, mesh, mats, { method = 'weighted', preserve = true } = {}) {
+    apply(puppet, piece, mesh, mats, { method = 'weighted', preserve = true, amount = 1 } = {}) {
       if (!mats) return;
       if (method !== 'rigid') rotationBlend(puppet, mesh, mats);
       if (method === 'weighted') return;
@@ -210,8 +210,9 @@ export function createDeform() {
           x += (c.skinned[i * 2] - x) * p;
           y += (c.skinned[i * 2 + 1] - y) * p;
         }
-        out[i * 2] = x;
-        out[i * 2 + 1] = y;
+        // How much of the shape preservation to use: 0 is plain skinning, 1 is the full effect.
+        out[i * 2] = c.skinned[i * 2] + (x - c.skinned[i * 2]) * amount;
+        out[i * 2 + 1] = c.skinned[i * 2 + 1] + (y - c.skinned[i * 2 + 1]) * amount;
       }
     },
   };
