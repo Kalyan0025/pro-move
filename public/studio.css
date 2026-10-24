@@ -64,7 +64,7 @@ body:not(.light) .lface { background: #2a2a2d; }
 .brushpanel { width: 420px; padding: 8px 0 0; }
 .brushpanel .layers-head { padding: 0 8px 6px 12px; }
 .bp-search { display: block; width: calc(100% - 24px); margin: 0 12px 8px; padding: 8px 12px; border: 0; border-radius: 10px; background: rgba(120, 120, 128, .22); color: var(--text); font: inherit; font-size: 13px; }
-.bp-body { display: flex; height: min(460px, calc(100vh - 220px)); border-top: 1px solid var(--row-line); }
+.bp-body { display: flex; height: min(660px, calc(100vh - 150px)); border-top: 1px solid var(--row-line); }
 .bp-sets { width: 132px; flex: none; overflow-y: auto; border-right: 1px solid var(--row-line); padding: 4px 0; }
 .bp-set { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 40px; padding: 0 12px; font-size: 13px; }
 .bp-set small { color: var(--text-dim); font-size: 11px; }
@@ -308,3 +308,40 @@ body.frame-anim .zoom-pill { bottom: 130px; }
 .ph-presets button.on { background: var(--accent-strong); color: #fff; }
 .ph-row .ph-hint { display: block; width: 100%; margin: 2px 0 0; padding: 0; font-size: 11.5px; line-height: 1.35; color: var(--text-dim); }
 #phPlot { display: block; width: calc(100% - 28px); margin: 8px 14px 0; border-radius: 10px; }
+
+/* ---- Selection bar: a shape pill over a row of icon buttons, like Procreate's ---- */
+#selBar { flex-direction: column; flex-wrap: nowrap; gap: 8px; padding: 10px 14px 8px; border-radius: 24px; max-width: min(640px, calc(100% - 100px)); }
+#selBar .sel-modes { padding: 3px; border-radius: 16px; }
+#selBar .sel-modes button { flex-direction: row; gap: 6px; min-width: 0; padding: 6px 14px; font-size: 12.5px; border-radius: 13px; }
+#selBar .sel-modes button svg { width: 16px; height: 16px; }
+.sel-acts { display: flex; gap: 2px; justify-content: space-between; width: 100%; }
+.sel-acts button { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 62px; padding: 4px 4px 2px; border-radius: 10px; font-size: 10.5px; color: var(--text); white-space: nowrap; }
+.sel-acts button svg { width: 22px; height: 22px; }
+.sel-acts button.on { color: var(--accent); }
+.sel-acts button:disabled { opacity: .32; }
+.sel-panel { display: flex; flex-direction: column; gap: 4px; width: 100%; padding: 8px 10px; border-radius: 12px; background: rgba(120, 120, 128, .16); }
+.sel-panel label { display: grid; grid-template-columns: 70px 1fr 28px; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-dim); }
+.sel-panel input { width: 100%; accent-color: var(--accent); margin: 0; }
+.sel-panel output { text-align: right; font-variant-numeric: tabular-nums; }
+.sel-saves { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sel-saves button { min-height: 32px; padding: 0 12px; border-radius: 16px; font-size: 12px; background: rgba(120, 120, 128, .24); }
+.sel-saves button:disabled { opacity: .4; }
+.sel-save { display: inline-flex; gap: 1px; }
+.sel-save button:first-child { border-radius: 16px 0 0 16px; }
+.sel-save button:last-child { border-radius: 0 16px 16px 0; padding: 0 9px; }
+.sel-saves small { color: var(--text-dim); }
+
+/* ---- Adjustments list: text only, in groups, like Procreate's ---- */
+.adjmenu { width: 300px; padding: 10px 0 8px; }
+.adjmenu .pop-title { padding: 0 16px 6px; }
+.adjmenu .adj-group { margin: 0 10px 8px; border-radius: 12px; background: rgba(120, 120, 128, .14); overflow: hidden; }
+.adjmenu .adj-item { min-height: 40px; padding: 0 14px; font-size: 14px; justify-content: flex-start; }
+.adjmenu .adj-item + .adj-item { border-top: .5px solid rgba(255, 255, 255, .08); }
+
+/* ---- Colours: History and the active palette sit under the picker, as in Procreate ---- */
+.cp-under { padding: 0 14px 6px; }
+.cp-label { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 4px; font-size: 11px; color: var(--text-dim); }
+.cp-link { font-size: 11px; color: var(--text-dim); padding: 2px 4px; }
+.cp-under .cp-history { margin-left: 0; min-height: 22px; }
+.cp-quick { padding: 0 0 4px; gap: 5px; }
+.cp-quick .cp-sw.small { width: 24px; height: 24px; }

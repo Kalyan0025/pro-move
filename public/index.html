@@ -137,6 +137,11 @@
         <button class="row link" data-share="jpg">JPEG</button>
         <button class="row link" id="btnSharePng" data-share="png">PNG</button>
       </div>
+      <div class="group-title">Share layers</div>
+      <div class="group">
+        <button class="row link" data-share="layerpngs">PNG files<small>one picture for each layer</small></button>
+        <button class="row link" data-share="flat">Layers on one sheet<small>transparent PNG</small></button>
+      </div>
     </div>
 
     <!-- Video -->
@@ -299,7 +304,6 @@
     <div class="cp-top">
       <button class="cp-big" id="cpPrimary" aria-label="Current colour"></button>
       <button class="cp-big sec" id="cpSecondary" aria-label="Secondary colour, tap to swap" data-tip="Tap to swap with the current colour"></button>
-      <div class="cp-history" id="cpHistory" aria-label="Recent colours"></div>
     </div>
     <div class="cp-views">
       <div data-view="disc" class="cp-center"><canvas id="cpDisc" width="264" height="264"></canvas></div>
@@ -312,6 +316,12 @@
         <div id="cpPalSwatches" class="cp-sws big"></div>
         <div class="cp-palbtns"><button id="cpPalEdit" class="btn">Remove colours</button><button id="cpPalDelete" class="btn hidden">Delete palette</button></div>
       </div>
+    </div>
+    <div class="cp-under" id="cpUnder">
+      <div class="cp-label"><span>History</span><button id="cpHistClear" class="cp-link">Clear</button></div>
+      <div class="cp-history" id="cpHistory" aria-label="Recent colours"></div>
+      <div class="cp-label"><span id="cpPalName">Palette</span></div>
+      <div class="cp-sws cp-quick" id="cpQuick" aria-label="Palette colours"></div>
     </div>
     <nav id="cpTabs" class="cp-tabs">
       <button data-tab="disc"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/></svg>Disc</button>

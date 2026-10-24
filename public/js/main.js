@@ -833,11 +833,11 @@ function toolRoute() {
   return null;
 }
 // Opening one tool closes the others (a transform in progress is finished, an adjustment is cancelled).
-function leaveTools(keep) {
+function leaveTools(keep, { popovers = true } = {}) {
   if (keep !== 'selection' && selection.active) selection.exit();
   if (keep !== 'transform' && lxform.active) lxform.finish(true);
   if (keep !== 'adjust' && adjust.active) adjust.cancel();
-  closePopovers();
+  if (popovers) closePopovers();
 }
 function useBrushFor(tool) {
   const b = library.toolBrush(tool);
@@ -923,7 +923,8 @@ const anim = createAnim({
 // The two timelines do not share the bottom of the screen.
 $('prefAnim').addEventListener('input', () => $('prefAnim').checked && anim.setEnabled(false));
 // Choosing a brush, smudge or eraser leaves the other tools.
-for (const b of document.querySelectorAll('.tool')) b.addEventListener('click', () => leaveTools('paint'));
+// (Tapping the tool in use opens its brush library; that must stay open.)
+for (const b of document.querySelectorAll('.tool')) b.addEventListener('click', () => leaveTools('paint', { popovers: $('brushPanel').classList.contains('hidden') }));
 // The Layers popover shows the layers of the open artwork; rows are built when it opens.
 $('btnLayers').addEventListener('click', () => !$('layersPanel').classList.contains('hidden') && layersUI.render());
 
