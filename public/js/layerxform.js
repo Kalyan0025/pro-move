@@ -123,8 +123,6 @@ export function createLayerTransform({ studio, toast, getSelection, clearSelecti
 
   // ------------------------------------------------------------ drawing
   function render(full = false) {
-    const d = D();
-    const f = full ? 1 : k();
     const g = full ? layer.ctx : vg;
     if (!full) {
       if (view.width !== Math.round(studio.paper.w * Math.min(2, window.devicePixelRatio || 1))) {
@@ -152,8 +150,6 @@ export function createLayerTransform({ studio, toast, getSelection, clearSelecti
     }
     g.restore();
     if (!full) handles();
-    void f;
-    void d;
   }
   let small = null;
   function preview() {
@@ -176,12 +172,11 @@ export function createLayerTransform({ studio, toast, getSelection, clearSelecti
       Q.forEach((p, i) => spots.push({ id: `c${i}`, p }));
       if (mode === 'freeform') for (let i = 0; i < 4; i++) spots.push({ id: `e${i}`, p: mul(add(Q[i], Q[(i + 1) % 4]), 0.5) });
       if (mode === 'uniform' || mode === 'freeform') {
-        const top = mul(add(Q[0], Q[1]), 0.5), c = centre();
+        const top = mul(add(Q[0], Q[1]), 0.5);
         const dir = sub(top, mul(add(Q[2], Q[3]), 0.5));
         const L = Math.hypot(dir.x, dir.y) || 1;
         spots.push({ id: 'rot', p: add(top, mul(dir, (46 / cssK() / k()) / L)) });
       }
-      void centre;
     }
     return spots;
   }
@@ -247,7 +242,6 @@ export function createLayerTransform({ studio, toast, getSelection, clearSelecti
     const r = view.getBoundingClientRect();
     return { x: ((e.clientX - r.left) * D().width) / r.width, y: ((e.clientY - r.top) * D().height) / r.height };
   };
-  const hitRadius = () => 24 / (studio.paper.k * (studio.paper.w / D().width)) / (D().width / studio.paper.w) / 1; // 24 iPad points in artwork pixels
   const pxPerPoint = () => D().width / studio.paper.w;
   function inside(p) {
     const poly = mode === 'warp' ? [G[0][0], G[0][3], G[3][3], G[3][0]] : Q;

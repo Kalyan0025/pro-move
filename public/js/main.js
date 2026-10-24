@@ -28,6 +28,9 @@ import { createGallery } from './gallery.js';
 import { createSelection } from './select.js';
 import { createLayerTransform } from './layerxform.js';
 import { createAdjust } from './adjust.js';
+import { createActions } from './actionsui.js';
+import { createGestures } from './gestures.js';
+import { createAnim } from './anim.js';
 import { createTakes } from './take.js';
 import { createJointBalls } from './joints.js';
 import { createAiFix } from './aifix.js';
@@ -271,8 +274,25 @@ workspace.addEventListener('pointerdown', (e) => {
   const tool = toolRoute();
   if (tool) return tool.down(e);
   painter.down(e);
+  // Touch and hold without moving picks the colour under the brush (the stroke is dropped).
+  clearTimeout(holdTimer);
+  if (actions.prefs.hold && painter.busy && painter.tool === 'brush') {
+    const at = { x: e.clientX, y: e.clientY };
+    holdMove = at;
+    holdTimer = setTimeout(() => {
+      if (!painter.busy || Math.hypot(holdMove.x - at.x, holdMove.y - at.y) > 6) return;
+      painter.cancelStroke();
+      const hex = painter.sample(painter.toCanvas(e));
+      setColor(hex);
+      colourUI.pickedExternally(hex);
+      toast(`Picked ${hex.toUpperCase()}`, 900);
+    }, 650);
+  }
 });
+let holdTimer = 0;
+let holdMove = { x: 0, y: 0 };
 workspace.addEventListener('pointermove', (e) => {
+  holdMove = { x: e.clientX, y: e.clientY };
   const tool = toolRoute();
   if (tool) return tool.move(e);
   painter.move(e);
@@ -285,12 +305,12 @@ workspace.addEventListener('pointermove', (e) => {
   workspace.style.cursor = '';
   if ($('prefCursor').checked && e.pointerType !== 'touch') {
     const p = toScreen(e);
-    const d = painter.size;
+    const d = painter.size * (painter.dynamic ? 1 : studio.view.s);
     Object.assign(cursor.style, { left: `${p.x}px`, top: `${p.y}px`, width: `${d}px`, height: `${d}px` });
     cursor.classList.remove('hidden');
   }
 });
-workspace.addEventListener('pointerup', (e) => (toolRoute() ? toolRoute().up(e) : painter.up()));
+workspace.addEventListener('pointerup', (e) => (clearTimeout(holdTimer), toolRoute() ? toolRoute().up(e) : painter.up()));
 workspace.addEventListener('pointercancel', (e) => (toolRoute() ? toolRoute().up(e) : painter.up()));
 workspace.addEventListener('pointerleave', () => {
   cursor.classList.add('hidden');
@@ -306,16 +326,8 @@ function imageFromSrc(src) {
     img.src = src;
   });
 }
-$('insertPhoto').addEventListener('change', async (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  painter.insertImage(await imageFromSrc(URL.createObjectURL(f)));
-  e.target.value = '';
-  closePopovers();
-});
 $('btnFlipH').addEventListener('click', () => studio.flipCanvas(true));
 $('btnFlipV').addEventListener('click', () => studio.flipCanvas(false));
-$('btnClearCanvas').addEventListener('click', () => painter.clear());
 
 // ---------- Background image layer (the scene the character is placed into) ----------
 const bgLayer = $('bgLayer');
@@ -361,7 +373,6 @@ function download(href, name) {
   a.click();
 }
 const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-$('btnSharePng').addEventListener('click', () => download(flatten().toDataURL('image/png'), `artwork-${stamp()}.png`));
 
 // ---------- Layers ----------
 $('layerRig').addEventListener('input', () => {
@@ -885,6 +896,26 @@ $('btnAdjust').addEventListener('click', () => {
   leaveTools('adjust');
   togglePopover(adjust.menu);
 });
+const actions = createActions({
+  studio, painter, selection, toast, stage, bgImage: () => bgImage,
+  getColour: () => painter.color, closePopovers,
+  setDynamic: (v) => (painter.dynamic = v),
+});
+createGestures({
+  studio, screenEl, workspace: $('workspace'), painter, undo, redo,
+  prefs: () => actions.prefs, isRigEditing: () => takes.editing,
+});
+const anim = createAnim({
+  studio, toast,
+  leaveRigTimeline: () => {
+    if ($('prefAnim').checked) {
+      $('prefAnim').checked = false;
+      $('prefAnim').dispatchEvent(new Event('input'));
+    }
+  },
+});
+// The two timelines do not share the bottom of the screen.
+$('prefAnim').addEventListener('input', () => $('prefAnim').checked && anim.setEnabled(false));
 // Choosing a brush, smudge or eraser leaves the other tools.
 for (const b of document.querySelectorAll('.tool')) b.addEventListener('click', () => leaveTools('paint'));
 // The Layers popover shows the layers of the open artwork; rows are built when it opens.
@@ -900,9 +931,7 @@ $('bgColourInput').addEventListener('input', (e) => {
 studio.on('doc', () => {
   $('layerBg').checked = studio.doc.bg.imageVisible;
   $('bgColourInput').value = studio.doc.bg.color;
-  syncAnimBar?.();
 });
-let syncAnimBar = null;
 const gallery = createGallery({
   studio, toast, bgImage: () => bgImage,
   screenSize: () => ({ w: stage.width, h: stage.height }),

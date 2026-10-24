@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <title>Motion Rig · Build 10</title>
+  <title>Pro Move</title>
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
@@ -93,30 +93,36 @@
     <!-- Add -->
     <div class="apane hidden" data-pane="add">
       <div class="group">
+        <label class="row link">Insert a file<input type="file" accept="image/*" id="insertFile" class="file-hit"></label>
         <label class="row link">Insert a photo<input type="file" accept="image/*" id="insertPhoto" class="file-hit"></label>
-        <div class="row link dim">Insert a file</div>
-        <div class="row link dim">Take a photo</div>
-        <div class="row link dim">Add text</div>
+        <label class="row link">Take a photo<input type="file" accept="image/*" capture="environment" id="takePhoto" class="file-hit"></label>
+        <button class="row link" id="btnAddText">Add text</button>
       </div>
       <div class="group">
-        <div class="row link dim">Cut</div>
-        <div class="row link dim">Copy</div>
-        <div class="row link dim">Copy canvas</div>
-        <div class="row link dim">Paste</div>
+        <button class="row link" id="btnCut">Cut</button>
+        <button class="row link" id="btnCopy">Copy</button>
+        <button class="row link" id="btnCopyCanvas">Copy canvas</button>
+        <button class="row link" id="btnPaste">Paste</button>
       </div>
     </div>
 
     <!-- Canvas -->
     <div class="apane hidden" data-pane="canvas">
       <div class="group">
-        <div class="row link dim">Crop &amp; resize</div>
-        <label class="row">Animation Assist<input type="checkbox" class="switch" id="prefAnim"></label>
-        <label class="row">Drawing guide<input type="checkbox" class="switch"></label>
+        <button class="row link" id="btnCrop">Crop &amp; resize</button>
+        <label class="row">Animation Assist<small>drawn frames</small><input type="checkbox" class="switch" id="prefFrames"></label>
+        <label class="row">Rig pose frames<small>Motion Rig timeline</small><input type="checkbox" class="switch" id="prefAnim"></label>
+        <label class="row">Drawing guide<input type="checkbox" class="switch" id="prefGuide"></label>
+        <button class="row link" id="btnGuideOpts">Edit drawing guide</button>
         <label class="row">Reference<input type="checkbox" class="switch" id="prefReference"></label>
       </div>
       <div class="group">
         <button class="row link" id="btnFlipH">Flip canvas horizontally</button>
         <button class="row link" id="btnFlipV">Flip canvas vertically</button>
+        <button class="row link" id="btnCanvasInfo">Canvas information</button>
+      </div>
+      <div class="group">
+        <button class="row link" id="btnClearLayer">Clear layer</button>
         <button class="row link" id="btnClearCanvas">Clear canvas</button>
       </div>
     </div>
@@ -125,21 +131,22 @@
     <div class="apane hidden" data-pane="share">
       <div class="group-title">Share image</div>
       <div class="group">
-        <div class="row link dim">Procreate</div>
-        <div class="row link dim">PSD</div>
-        <div class="row link dim">PDF</div>
-        <div class="row link dim">JPEG</div>
-        <button class="row link" id="btnSharePng">PNG</button>
+        <button class="row link" data-share="promove">Pro Move<small>.promove, every layer</small></button>
+        <button class="row link" data-share="psd">PSD<small>layers, opens in Procreate</small></button>
+        <button class="row link" data-share="pdf">PDF</button>
+        <button class="row link" data-share="jpg">JPEG</button>
+        <button class="row link" id="btnSharePng" data-share="png">PNG</button>
       </div>
     </div>
 
     <!-- Video -->
     <div class="apane hidden" data-pane="video">
       <div class="group">
-        <div class="row link dim">Time-lapse Replay</div>
-        <label class="row">Record Time-lapse<input type="checkbox" class="switch" checked></label>
-        <div class="row link dim">Export Time-lapse Video</div>
+        <label class="row">Record time-lapse<small id="lapseCount">0 frames recorded</small><input type="checkbox" class="switch" id="lapseOn" checked></label>
+        <button class="row link" id="lapseReplay">Time-lapse replay</button>
+        <button class="row link" id="lapseExport">Export time-lapse video<small>.webm</small></button>
       </div>
+      <p class="hint">A picture is kept after each change, up to about 240, and played back quickly.</p>
     </div>
 
     <!-- Prefs -->
@@ -147,21 +154,15 @@
       <div class="group">
         <label class="row">Light interface<input type="checkbox" class="switch" id="prefLight"></label>
         <label class="row">Right-hand interface<input type="checkbox" class="switch" id="prefRightHand"></label>
-        <label class="row">Dynamic brush scaling<input type="checkbox" class="switch" checked></label>
-        <label class="row">Project canvas<input type="checkbox" class="switch"></label>
+        <label class="row">Dynamic brush scaling<small>same size on screen when zoomed</small><input type="checkbox" class="switch" id="prefDynamic" checked></label>
         <label class="row">Brush cursor<input type="checkbox" class="switch" id="prefCursor" checked></label>
-        <div class="row link dim">Advanced cursor settings</div>
       </div>
       <div class="group">
-        <label class="row">Store brushes in iCloud<input type="checkbox" class="switch"></label>
+        <button class="row link" id="btnPressure">Pressure and smoothing</button>
+        <button class="row link" id="btnGestures">Gesture controls</button>
       </div>
       <div class="group">
-        <div class="row link dim">Pressure and Smoothing</div>
-        <div class="row link dim">Gesture controls</div>
-      </div>
-      <div class="group">
-        <div class="row slider-row"><span>Rapid undo delay</span><output>0.65s</output><input type="range" min="0" max="1.5" step="0.05" value="0.65" data-fmt="s"></div>
-        <div class="row slider-row"><span>Selection mask visibility</span><output>25.0%</output><input type="range" min="0" max="100" step="0.5" value="25" data-fmt="%"></div>
+        <div class="row slider-row"><span>Selection mask visibility</span><output id="prefSelVisOut">25.0%</output><input type="range" id="prefSelVis" min="0" max="100" step="0.5" value="25"></div>
       </div>
       <div class="group">
         <label class="row">Size &amp; Opacity sidebar<input type="checkbox" class="switch" id="prefSidebar" checked></label>
@@ -559,6 +560,15 @@
   <div class="toolbar hidden" id="selBar" aria-label="Selection tools"></div>
   <div class="toolbar hidden" id="adjBar" aria-label="Adjustment"></div>
   <div class="toolbar hidden" id="xfBar" aria-label="Transform layer"></div>
+
+  <!-- Animation Assist for drawn frames -->
+  <div class="animbar hidden" id="animBar" aria-label="Animation Assist"></div>
+  <div class="af-settings hidden" id="afSettings"></div>
+
+  <!-- A small dialog, filled in by whatever opens it -->
+  <div class="dlg hidden" id="dlg"></div>
+  <button class="zoom-pill hidden" id="zoomPill" data-tip="Zoom. Tap to fit the canvas">100%</button>
+  <button class="ui-show" id="uiShow" aria-label="Show the interface" data-tip="Bring the interface back"><svg viewBox="0 0 24 24"><path d="M5 9V5h4M19 9V5h-4M5 15v4h4M19 15v4h-4"/></svg></button>
 
   <div class="toast hidden" id="toast"></div>
 

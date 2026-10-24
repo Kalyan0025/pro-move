@@ -255,3 +255,19 @@ Code: `public/js/aifix.js`.
 
 ## Joint dust (optional)
 **Actions › Rig › Character › Joint dust** (off by default). When a joint bends far enough to open a break, a dense cloud of very small dots in the colours used around that joint fills it, then fades as the joint straightens. **Density** sets how packed the cloud is; **Dot size** keeps the dots tiny by default. It works best on flat or textured art. Code: `public/js/dust.js` (reads each joint's colours from `joints.js`).
+
+## Build 12: the Procreate workflow
+The Procreate-style canvas now works the way the real one does. The Motion Rig is one layer in the stack and nothing about it changed.
+
+- **Gallery** (top left): every artwork as a card with its thumbnail, size and layer count. **New canvas** (+) offers Screen size, Square, A4, A5, 4K, Full HD, Story, Comic or a custom size, DPI, colour profile and background (or transparent). **Select** gives Stack, Preview, Rename, Share, Duplicate and Delete. **Import** takes PNG, JPG, SVG, PSD (layers kept) and `.promove` files; **Photo** starts an artwork from a picture. Artworks are saved in this browser as you work, and the last one reopens.
+- **Layers**: add, group, rename, duplicate, delete, show and hide, drag to reorder, swipe left for Lock / Duplicate / Delete, tap a layer's "N" for the menu (Select, Copy, Fill, Clear, Alpha Lock, Mask, Invert, Group, Merge Down, Flatten, opacity and 17 blend modes). The **Motion Rig** row can be moved above or below drawing layers.
+- **Brushes**: a Brush Library with 7 sets and 22 brushes, search, and **Brush Studio** (size, opacity, hardness, spacing, flow, grain, scatter, tip shape and angle, pressure, stabilisation) with live preview. Duplicate to make your own. Tap the tool you are using to open its brushes; brush, smudge and eraser each remember their brush, and each brush remembers its size and opacity.
+- **Colours**: Disc, Classic, Harmony, Value (HSB, RGB, hex) and Palettes, with a history of recent colours and a secondary colour to swap with.
+- **Selection**: Automatic, Freehand, Rectangle, Ellipse; Add and Remove; Invert, Select all, Feather, Copy & Paste, Colour Fill, Clear. Painting, adjustments and transforms stay inside it.
+- **Transform** (for the layer you are on, or what is selected): Uniform, Freeform, Distort, Warp, snapping, flip, rotate 45°, fit to canvas. With the Motion Rig layer selected, Transform still moves the character.
+- **Adjustments**: Hue / Saturation / Brightness, Curves, Gaussian and Motion Blur, Sharpen, Noise, Bloom and Liquify (Push, Twirl, Pinch, Expand, Reconstruct).
+- **Actions**: Add (file, photo, text, cut, copy, paste), Canvas (crop and resize, drawing guide with grid, isometric and symmetry, flip, canvas information, clear), Share (PNG, JPEG, PDF, layered PSD, `.promove`), Video (time-lapse replay and `.webm` export), Prefs (pressure curve, stabilisation, gesture controls, dynamic brush scaling).
+- **Animation Assist** (Actions › Canvas): every drawing layer is a frame, with Add, Duplicate, Delete, Hold, frame rate, loop / ping-pong / one shot, blue and red onion skins, and Play. (The older Rig pose frames timeline is still there as "Rig pose frames".)
+- **Gestures**: pinch to zoom and pan (Ctrl + wheel on a laptop), two-finger tap undo, three-finger tap redo, four-finger tap hides the interface, touch and hold picks a colour.
+
+Code: `studio.js` (layers, history, saving), `paint.js` + `brushes.js` (brush engine), `layersui.js`, `brushui.js`, `colourui.js`, `gallery.js`, `select.js`, `layerxform.js`, `adjust.js`, `anim.js`, `actionsui.js`, `gestures.js`, `exporters.js`, `store.js`.

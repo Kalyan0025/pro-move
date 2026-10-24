@@ -497,13 +497,10 @@ export function createAdjust({ studio, toast, getSelection, onMode }) {
   // ------------------------------------------------------------ Liquify
   const LIQ = [['push', 'Push', '<path d="M5 12h12m-4-4 4 4-4 4"/>'], ['twirl', 'Twirl', '<path d="M12 4a8 8 0 1 1-7 4M5 4v4h4"/>'], ['twirlL', 'Twirl back', '<path d="M12 4a8 8 0 1 0 7 4M19 4v4h-4"/>'], ['pinch', 'Pinch', '<path d="M5 12h5M19 12h-5M8 9l2 3-2 3M16 9l-2 3 2 3"/>'], ['expand', 'Expand', '<path d="M3 12h6M21 12h-6M7 9l-3 3 3 3M17 9l3 3-3 3"/>'], ['reconstruct', 'Reconstruct', '<path d="M5 12a7 7 0 1 1 2 5M5 18v-5h5"/>']];
   function startLiquify(layer) {
-    const W = layer.canvas.width, H = layer.canvas.height;
     liq = { layer, tool: 'push', size: 30, strength: 60, orig: studio.grab(layer.canvas), rect: null, down: null, timer: 0, last: null };
     document.body.classList.add('liquifying');
     onMode?.(true, 'liquify');
     drawLiquifyBar();
-    void W;
-    void H;
   }
   function drawLiquifyBar() {
     bar.innerHTML = `<b class="bar-title">Liquify</b>

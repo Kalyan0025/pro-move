@@ -28,6 +28,9 @@ export class Painter {
     this.onPick = null;
     this.onError = null;
     this.onStroke = null; // called when a stroke lands
+    this.extraSmoothing = 0; // global stabilisation added to every brush (Prefs)
+    this.dynamic = true; // keep the brush the same size on screen when the canvas is zoomed
+    this.symmetry = 'none'; // 'none' | 'v' | 'h' | 'q': strokes are mirrored (Drawing Guide)
     this.s = null; // the stroke in progress
     this.snap = document.createElement('canvas');
   }
@@ -49,7 +52,7 @@ export class Painter {
     };
   }
   get k() {
-    return this.stroke.width / this.studio.paper.w; // artwork pixels per iPad point
+    return this.stroke.width / this.studio.paper.w / (this.dynamic ? this.studio.view.s : 1); // artwork pixels per iPad point
   }
 
   down(e) {
@@ -84,7 +87,7 @@ export class Painter {
   // Add a point to the path: smooth it, then lay stamps along the curve from the last midpoint.
   extend(pt) {
     const s = this.s;
-    const a = 1 - Math.min(0.85, (this.brush.smoothing || 0) * 0.85);
+    const a = 1 - Math.min(0.9, ((this.brush.smoothing || 0) + this.extraSmoothing) * 0.85);
     const sm = { x: s.sm.x + (pt.x - s.sm.x) * a, y: s.sm.y + (pt.y - s.sm.y) * a, p: s.sm.p + (pt.p - s.sm.p) * 0.5, pen: pt.pen };
     const mid = { x: (s.prev.x + sm.x) / 2, y: (s.prev.y + sm.y) / 2, p: (s.prev.p + sm.p) / 2 };
     const from = s.mid;
@@ -134,22 +137,45 @@ export class Painter {
     }
     const flow = (b.flow ?? 1) * alphaK;
     const r = dia / 2 + 2;
-    s.rect = s.rect
-      ? { x0: Math.min(s.rect.x0, x - r), y0: Math.min(s.rect.y0, y - r), x1: Math.max(s.rect.x1, x + r), y1: Math.max(s.rect.y1, y + r) }
-      : { x0: x - r, y0: y - r, x1: x + r, y1: y + r };
-    const angle = b.aspect && b.aspect < 1 ? 0 : 0;
-    if (this.tool === 'brush') {
-      stamp(this.sctx, b, x, y, dia, flow, this.color, angle);
-      this.sctx.globalAlpha = 1;
-    } else if (this.tool === 'eraser') {
-      const ctx = s.t.ctx;
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      stamp(ctx, b, x, y, dia, flow * this.opacity, '#000000', angle);
-      ctx.restore();
-    } else {
-      this.smudgeStep(x, y, dia, flow * this.opacity);
+    const W = this.stroke.width, H = this.stroke.height;
+    // With a symmetry guide on, every dab is repeated across the guide (not for smudge).
+    const at = [[x, y]];
+    if (this.tool !== 'smudge' && this.symmetry !== 'none') {
+      if (this.symmetry === 'v' || this.symmetry === 'q') at.push([W - x, y]);
+      if (this.symmetry === 'h' || this.symmetry === 'q') at.push([x, H - y]);
+      if (this.symmetry === 'q') at.push([W - x, H - y]);
     }
+    for (const [px, py] of at) {
+      s.rect = s.rect
+        ? { x0: Math.min(s.rect.x0, px - r), y0: Math.min(s.rect.y0, py - r), x1: Math.max(s.rect.x1, px + r), y1: Math.max(s.rect.y1, py + r) }
+        : { x0: px - r, y0: py - r, x1: px + r, y1: py + r };
+      if (this.tool === 'brush') {
+        stamp(this.sctx, b, px, py, dia, flow, this.color, 0);
+        this.sctx.globalAlpha = 1;
+      } else if (this.tool === 'eraser') {
+        const ctx = s.t.ctx;
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        stamp(ctx, b, px, py, dia, flow * this.opacity, '#000000', 0);
+        ctx.restore();
+      } else {
+        this.smudgeStep(px, py, dia, flow * this.opacity);
+      }
+    }
+  }
+
+  // Abandon the stroke in progress (a second finger landed, or a touch-and-hold became an eyedropper).
+  cancelStroke() {
+    const s = this.s;
+    if (!s) return;
+    this.s = null;
+    s.t.ctx.save();
+    s.t.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    s.t.ctx.clearRect(0, 0, s.t.canvas.width, s.t.canvas.height);
+    s.t.ctx.drawImage(this.snap, 0, 0);
+    s.t.ctx.restore();
+    this.sctx.clearRect(0, 0, this.stroke.width, this.stroke.height);
+    this.stroke.style.opacity = '';
   }
 
   // Smudge: carry the paint under the brush along, laying it down a little at each step.
@@ -257,18 +283,9 @@ export class Painter {
     ctx.putImageData(after, rect.x, rect.y);
   }
 
-  // The colour you see at a point: every visible layer, over the paper.
+  // The colour you see at a point: every visible layer, the picture behind and the character.
   sample(pt) {
-    const c = document.createElement('canvas');
-    c.width = c.height = 1;
-    const g = c.getContext('2d', { willReadFrequently: true });
-    const doc = this.studio.doc;
-    g.fillStyle = doc.bg.transparent ? '#ffffff' : doc.bg.color;
-    g.fillRect(0, 0, 1, 1);
-    g.translate(-Math.round(pt.x), -Math.round(pt.y));
-    for (const l of doc.layers) if (l.type === 'paint') this.studio.drawLayer(g, l);
-    const [r, gg, b] = g.getImageData(0, 0, 1, 1).data;
-    return '#' + [r, gg, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+    return this.studio.sampleAt(pt.x, pt.y);
   }
 
   // Whole-layer helpers used by the Actions menu.

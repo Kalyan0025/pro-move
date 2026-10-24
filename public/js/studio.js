@@ -52,6 +52,8 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
   let doc = null;
   const sel = { canvas: null }; // the selection mask (select.js), same size as the document
   const overlays = []; // tool pictures drawn over the artwork (selection, transform): { el, z }
+  const view = { s: 1, x: 0, y: 0 }; // zoom and pan of the whole canvas, in iPad points
+  let animView = null; // while animating drawn frames: { show: Map(layerId → {alpha, tint}) }
   const history = { undo: [], redo: [], bytes: 0 };
 
   // Paper behind the layers: the artwork's background colour.
@@ -110,7 +112,20 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     const w = doc.width * k, h = doc.height * k;
     return { x: (W - w) / 2, y: (H - h) / 2, w, h, k };
   }
-  const place = (el, p) => Object.assign(el.style, { inset: 'auto', left: `${p.x}px`, top: `${p.y}px`, width: `${p.w}px`, height: `${p.h}px` });
+  const place = (el, p) => {
+    Object.assign(el.style, { inset: 'auto', left: `${p.x}px`, top: `${p.y}px`, width: `${p.w}px`, height: `${p.h}px` });
+    zoomed(el, p.x, p.y);
+  };
+  // Zoom and pan: every picture of the canvas gets the same transform, about the workspace's corner.
+  function zoomed(el, left, top) {
+    if (view.s === 1 && !view.x && !view.y) {
+      el.style.transform = '';
+      el.style.transformOrigin = '';
+    } else {
+      el.style.transformOrigin = `${-left}px ${-top}px`;
+      el.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.s})`;
+    }
+  }
 
   function layout() {
     if (!doc) return;
@@ -118,7 +133,7 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     place(paperBg, p);
     paperBg.style.background = doc.bg.transparent ? 'repeating-conic-gradient(#d8d8dc 0 25%, #fff 0 50%) 0 0 / 16px 16px' : doc.bg.color;
     paperBg.style.boxShadow = doc.screen ? 'none' : '0 6px 30px rgba(0,0,0,.35)';
-    workspace.style.background = doc.screen ? '' : '#2b2b2e';
+    workspace.style.background = doc.screen && view.s === 1 && !view.x && !view.y ? '' : '#2b2b2e';
     place(bgLayer, p);
     bgLayer.style.visibility = doc.bg.image && doc.bg.imageVisible ? '' : 'hidden';
     let z = 10, activeZ = 10;
@@ -127,6 +142,7 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
       if (l.id === doc.activeId) activeZ = z;
       if (l.type === 'rig') {
         stage.style.zIndex = String(z);
+        zoomed(stage, 0, 0);
         stage.style.clipPath = doc.screen ? '' : `inset(${p.y}px ${workspace.offsetWidth - p.x - p.w}px ${workspace.offsetHeight - p.y - p.h}px ${p.x}px)`;
         continue;
       }
@@ -134,8 +150,15 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
       place(l.canvas, p);
       Object.assign(l.canvas.style, {
         zIndex: String(z), visibility: effVisible(l) ? '' : 'hidden', opacity: String(effOpacity(l)),
-        mixBlendMode: BLEND[l.blend]?.css || 'normal', pointerEvents: 'none',
+        mixBlendMode: BLEND[l.blend]?.css || 'normal', pointerEvents: 'none', filter: '',
       });
+      if (animView) {
+        // Animating: only the frame being shown (and its onion skins) are visible.
+        const a = animView.show.get(l.id);
+        l.canvas.style.visibility = a ? '' : 'hidden';
+        l.canvas.style.opacity = a ? String(a.alpha * effOpacity(l)) : '0';
+        l.canvas.style.filter = a?.tint || '';
+      }
       const m = l.mask && l.maskUrl ? `url(${l.maskUrl})` : '';
       l.canvas.style.webkitMaskImage = l.canvas.style.maskImage = m;
       l.canvas.style.webkitMaskSize = l.canvas.style.maskSize = '100% 100%';
@@ -506,6 +529,45 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     emit('layers');
   }
 
+  // Change the canvas size: cut or grow it around an anchor (0..1), or stretch the picture to fit.
+  function cropResize({ w, h, ax = 0.5, ay = 0.5, resample = false }) {
+    const canvases = doc.layers.flatMap((l) => [l.canvas, l.mask]).filter(Boolean);
+    const old = { w: doc.width, h: doc.height, screen: doc.screen };
+    const copies = canvases.map((c) => {
+      const t = makeCanvas(c.width, c.height);
+      t.classList.remove('layer-canvas');
+      t.getContext('2d').drawImage(c, 0, 0);
+      return t;
+    });
+    const set = (width, height, draw) => {
+      canvases.forEach((c, i) => {
+        c.width = width;
+        c.height = height;
+        draw(c.getContext('2d'), copies[i]);
+      });
+      doc.width = width;
+      doc.height = height;
+      syncStroke();
+      for (const l of doc.layers) if (l.mask) maskChanged(l);
+      layout();
+      emit('pixels');
+      emit('doc-size');
+    };
+    const dx = Math.round((w - old.w) * ax), dy = Math.round((h - old.h) * ay);
+    const forward = () => {
+      doc.screen = false;
+      set(w, h, (g, src) => (resample ? g.drawImage(src, 0, 0, w, h) : g.drawImage(src, dx, dy)));
+    };
+    forward();
+    pushHistory({
+      label: 'Crop & resize', cost: copies.reduce((a, c) => a + c.width * c.height * 4, 0),
+      undo: () => {
+        doc.screen = old.screen;
+        set(old.w, old.h, (g, src) => g.drawImage(src, 0, 0));
+      },
+      redo: forward,
+    });
+  }
   // Flip every layer (and mask) together, as Procreate's canvas flip does.
   function flipCanvas(horizontal) {
     const canvases = doc.layers.flatMap((l) => [l.canvas, l.mask]).filter(Boolean);
@@ -619,6 +681,13 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     }
     const c = out.getContext('2d');
     c.clearRect(0, 0, w, h);
+    compose(c, k, { rig, bg, transparent });
+    return out;
+  }
+  // Draw the whole artwork onto a context, scaled by k: the paper, the picture behind, every layer
+  // in order, and the live character in its place in the stack.
+  function compose(c, k, { rig = true, bg = true, transparent = false } = {}) {
+    const w = Math.max(1, Math.round(doc.width * k)), h = Math.max(1, Math.round(doc.height * k));
     if (!transparent && !doc.bg.transparent) {
       c.fillStyle = doc.bg.color;
       c.fillRect(0, 0, w, h);
@@ -638,7 +707,18 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
         }
       } else if (l.type === 'paint') drawLayer(c, l, k);
     }
-    return out;
+  }
+  // The colour you see at one point of the artwork (for the eyedropper), as hex.
+  function sampleAt(x, y) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 1;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, 1, 1);
+    g.translate(-Math.round(x), -Math.round(y));
+    compose(g, 1, {});
+    const [r, gg, b] = g.getImageData(0, 0, 1, 1).data;
+    return '#' + [r, gg, b].map((v) => v.toString(16).padStart(2, '0')).join('');
   }
   function thumbnail(width = 360) {
     const c = flatten({ width });
@@ -751,10 +831,21 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     get paper() { return paper(); },
     byId, paintLayers, groupOf, effVisible, effOpacity, unique, makeCanvas, grab,
     setActive, addLayer, addLayerWith, deleteLayer, duplicateLayer, renameLayer, moveLayer, move, groupLayer, ungroup, toggleGroup,
-    mergeDown, flattenVisible, flipCanvas, setLayerProp, clearLayer, addMask, removeMask, maskChanged, drawLayer,
+    mergeDown, flattenVisible, flipCanvas, cropResize, serialize, setLayerProp, clearLayer, addMask, removeMask, maskChanged, drawLayer,
+    get view() { return view; },
+    setView(v) {
+      Object.assign(view, v);
+      layout();
+      emit('view');
+    },
+    setAnimView(v) {
+      animView = v;
+      layout();
+    },
+    get animating() { return !!animView; },
     addOverlay: (el, z = 800) => { overlays.push({ el, z }); workspace.append(el); layout(); },
     paintTarget, pushHistory, rectEntry, commitWhole, propEntry, structureEntry, undo, redo,
-    create, load, open, newArtwork, save, saveNow, touch, resizeScreen, layout, flatten, thumbnail, layerThumb,
+    create, load, open, newArtwork, save, saveNow, touch, resizeScreen, layout, flatten, sampleAt, thumbnail, layerThumb,
     BLEND,
   };
 }
