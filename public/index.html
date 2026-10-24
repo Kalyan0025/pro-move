@@ -29,7 +29,7 @@
   <!-- ============ Procreate top bar ============ -->
   <header class="topbar">
     <div class="topbar-left">
-      <button class="tb-text" id="btnGallery" data-tip="Gallery (not part of this prototype)">Gallery</button>
+      <button class="tb-text" id="btnGallery" data-tip="Gallery: your artworks">Gallery</button>
       <button class="tb-icon cam-btn" id="btnCam" aria-label="Camera" data-tip="Camera: capture a pose, or record your movement"><svg viewBox="-76 -76 152 152" class="cam-mark"><g fill="currentColor" stroke="none"><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(0)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(45)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(90)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(135)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(180)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(225)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(270)"/><path d="M0 0 C-3 -16 -4 -34 -10 -47 C2 -40 12 -26 7 -10 C5 -5 2 -2 0 0Z" transform="rotate(315)"/></g><g fill="none" stroke="currentColor" stroke-width="6.5" stroke-linecap="round"><path d="M-25.0 0H25.0" transform="rotate(-25) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(20) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(65) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(110) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(155) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(200) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(245) translate(0 -60) rotate(18)"/><path d="M-25.0 0H25.0" transform="rotate(290) translate(0 -60) rotate(18)"/></g></svg></button>
       <button class="tb-icon" id="btnTips" aria-label="Show tips" data-tip="Show every tip again"><svg viewBox="0 0 24 24" class="glyph"><circle cx="12" cy="12" r="9.5"/><path class="kn" stroke-width="2" d="M9.7 9.6a2.4 2.4 0 1 1 3.4 2.2c-.7.4-1.1.8-1.1 1.6M12 16.8v.01"/></svg></button>
       <button class="tb-icon" id="btnNewChar" aria-label="New character" data-tip="New character: upload a PNG, SVG or PSD, or sketch your own"><svg viewBox="0 0 24 24" class="glyph"><circle cx="9.6" cy="7.4" r="3.5"/><path d="M2.8 20.2c.2-3.7 2.9-6.2 6.8-6.2.9 0 1.7.1 2.5.4a5 5 0 0 0-.8 2.7c0 1.2.4 2.2 1 3.1z"/><path class="st" stroke-width="2.1" d="M18.2 12.6v6.4M15 15.8h6.4"/></svg></button>
@@ -379,6 +379,60 @@
         <button class="btn" id="jeTemplate">Reset to template</button>
         <p class="hint" id="jeStatus" aria-live="polite"></p>
       </aside>
+    </div>
+  </section>
+
+  <!-- ============ Gallery ============ -->
+  <section class="gallery hidden" id="gallery" aria-label="Gallery">
+    <header class="gal-bar">
+      <button class="gal-btn hidden" id="galBack"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Gallery</button>
+      <h1 id="galTitle">Gallery</h1>
+      <span class="gal-sp"></span>
+      <button class="gal-btn" id="galSelect">Select</button>
+      <span class="gal-tools" id="galTools">
+        <label class="gal-btn">Import<input type="file" id="galImportFile" class="file-hit" accept=".psd,.promove,.json,.procreate,image/*"></label>
+        <label class="gal-btn">Photo<input type="file" id="galPhotoFile" class="file-hit" accept="image/*"></label>
+        <button class="gal-plus" id="galNew" aria-label="New canvas" data-tip="New canvas"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      </span>
+      <button class="gal-btn gal-close" id="galClose">Back to canvas</button>
+    </header>
+    <div class="gal-actions hidden" id="galActions">
+      <span id="galCount">Select artworks</span>
+      <span class="gal-acts">
+        <button data-do="stack"><svg viewBox="0 0 24 24"><rect x="6" y="8" width="13" height="11" rx="2"/><path d="M9 5h9a2 2 0 0 1 2 2v9"/></svg>Stack</button>
+        <button data-do="preview"><svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>Preview</button>
+        <button data-do="rename"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/></svg>Rename</button>
+        <button data-do="share"><svg viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4M5 11v9h14v-9"/></svg>Share</button>
+        <button data-do="duplicate"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>Duplicate</button>
+        <button data-do="delete" class="danger"><svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>Delete</button>
+      </span>
+    </div>
+    <div class="gal-grid" id="galGrid"></div>
+    <div class="gal-share hidden" id="galShare">
+      <b>Share as</b>
+      <button data-fmt="png">PNG</button><button data-fmt="jpg">JPEG</button><button data-fmt="psd">PSD (layers)</button><button data-fmt="pdf">PDF</button><button data-fmt="promove">Pro Move file</button>
+      <button class="cancel">Cancel</button>
+    </div>
+    <div class="gal-preview hidden" id="galPreview"><img id="galPreviewImg" alt=""><span id="galPreviewName"></span></div>
+    <div class="newcanvas hidden" id="newCanvas" role="dialog" aria-label="New canvas">
+      <div class="nc-card">
+        <header><button class="tl-text" id="ncCancel">Cancel</button><b>New canvas</b><button class="tl-text tl-add" id="ncCreate">Create</button></header>
+        <div class="nc-body">
+          <label class="nc-field wide"><span>Name</span><input id="ncName" type="text" placeholder="Untitled artwork" maxlength="60"></label>
+          <div class="nc-presets" id="ncPresets"></div>
+          <div class="nc-custom hidden" id="ncCustom">
+            <label class="nc-field"><span>Width (px)</span><input id="ncW" type="number" min="16" max="8192"></label>
+            <label class="nc-field"><span>Height (px)</span><input id="ncH" type="number" min="16" max="8192"></label>
+            <label class="nc-field"><span>DPI</span><input id="ncDpi" type="number" min="36" max="600"></label>
+          </div>
+          <div class="nc-row">
+            <label class="nc-field"><span>Colour profile</span><select id="ncProfile" class="row-select"><option>sRGB</option><option selected>Display P3</option><option>Adobe RGB</option></select></label>
+            <label class="nc-field"><span>Background</span><input id="ncBg" type="color" value="#ffffff"></label>
+            <label class="nc-field"><span>Transparent</span><input id="ncTransparent" type="checkbox" class="switch"></label>
+          </div>
+          <p class="nc-info" id="ncInfo"></p>
+        </div>
+      </div>
     </div>
   </section>
 

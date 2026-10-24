@@ -24,6 +24,7 @@ import { createLayersUI } from './layersui.js';
 import { createBrushUI } from './brushui.js';
 import { createColourUI } from './colourui.js';
 import { store } from './store.js';
+import { createGallery } from './gallery.js';
 import { createTakes } from './take.js';
 import { createJointBalls } from './joints.js';
 import { createAiFix } from './aifix.js';
@@ -852,6 +853,18 @@ studio.on('doc', () => {
   syncAnimBar?.();
 });
 let syncAnimBar = null;
+const gallery = createGallery({
+  studio, toast, bgImage: () => bgImage,
+  screenSize: () => ({ w: stage.width, h: stage.height }),
+  onOpen: () => {
+    layersUI.render();
+    closePopovers();
+  },
+});
+$('btnGallery').addEventListener('click', () => {
+  closePopovers();
+  gallery.open();
+});
 // Pick up where you left off: reopen the last artwork.
 (async () => {
   try {

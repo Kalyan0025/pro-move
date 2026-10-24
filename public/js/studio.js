@@ -51,6 +51,7 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
 
   let doc = null;
   const sel = { canvas: null }; // the selection mask (select.js), same size as the document
+  const overlays = []; // tool pictures drawn over the artwork (selection, transform): { el, z }
   const history = { undo: [], redo: [], bytes: 0 };
 
   // Paper behind the layers: the artwork's background colour.
@@ -141,6 +142,10 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     }
     place(stroke, p);
     stroke.style.zIndex = String(activeZ + 5);
+    for (const o of overlays) {
+      place(o.el, p);
+      o.el.style.zIndex = String(o.z);
+    }
     emit('layout', p);
   }
   // The mask picture the screen shows is refreshed when a mask changes.
@@ -182,6 +187,11 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
       },
     };
   }
+  const forget = (l) => {
+    if (l) l._blob = l._maskBlob = null;
+    else for (const x of doc?.layers || []) x._blob = x._maskBlob = null;
+  };
+  on('pixels', forget);
   const afterPixels = (canvas) => {
     const l = doc.layers.find((x) => x.canvas === canvas || x.mask === canvas);
     if (l?.mask === canvas) maskChanged(l);
@@ -661,8 +671,9 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     const layers = [];
     for (const l of doc.layers) {
       const rec = { id: l.id, name: l.name, type: l.type, visible: l.visible, opacity: l.opacity, blend: l.blend, alphaLock: l.alphaLock, locked: l.locked, parent: l.parent, expanded: l.expanded, hold: l.hold };
-      if (l.canvas) rec.blob = await canvasToBlob(l.canvas);
-      if (l.mask) rec.maskBlob = await canvasToBlob(l.mask);
+      // Unchanged layers reuse their last picture, so saving only re-encodes what was edited.
+      if (l.canvas) rec.blob = l._blob || (l._blob = await canvasToBlob(l.canvas));
+      if (l.mask) rec.maskBlob = l._maskBlob || (l._maskBlob = await canvasToBlob(l.mask));
       layers.push(rec);
     }
     return {
@@ -710,6 +721,11 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     emit('layers');
     return doc;
   }
+  // Save the open artwork now (the Gallery does this so its card is up to date).
+  async function saveNow() {
+    dirty = true;
+    await save();
+  }
   async function open(id) {
     await save();
     const rec = await store.get(id);
@@ -736,8 +752,9 @@ export function createStudio({ workspace, stroke, stage, bgLayer, toast, bgImage
     byId, paintLayers, groupOf, effVisible, effOpacity, unique, makeCanvas, grab,
     setActive, addLayer, addLayerWith, deleteLayer, duplicateLayer, renameLayer, moveLayer, move, groupLayer, ungroup, toggleGroup,
     mergeDown, flattenVisible, flipCanvas, setLayerProp, clearLayer, addMask, removeMask, maskChanged, drawLayer,
+    addOverlay: (el, z = 800) => { overlays.push({ el, z }); workspace.append(el); layout(); },
     paintTarget, pushHistory, rectEntry, commitWhole, propEntry, structureEntry, undo, redo,
-    create, load, open, newArtwork, save, touch, resizeScreen, layout, flatten, thumbnail, layerThumb,
+    create, load, open, newArtwork, save, saveNow, touch, resizeScreen, layout, flatten, thumbnail, layerThumb,
     BLEND,
   };
 }
