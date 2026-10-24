@@ -158,7 +158,7 @@ function cleanAngle(raw, i, bone, amount) {
 
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-export function createTakes({ rig, toast, renderPose, pointsFor, isLive, onOpenChange, status, onStartCamera, onStartDemo, onStopLive, hints }) {
+export function createTakes({ onAiFix, rig, toast, renderPose, pointsFor, isLive, onOpenChange, status, onStartCamera, onStartDemo, onStopLive, hints }) {
   const takes = [];
   let active = null;
   let nextFrameId = 1;
@@ -172,6 +172,7 @@ export function createTakes({ rig, toast, renderPose, pointsFor, isLive, onOpenC
   let brush = null; // active pose-brush drag
   let hover = null; // part under the pointer in Rig mode, and where the pointer is
   let playRow = -1; // the frame row lit up while playing
+  let forcedPose = null; // a drawing the AI fix is scanning or repairing
   const preview = { playing: true, mode: 'after', t0: performance.now(), crop: null, cropKey: '' };
   const previewOff = document.createElement('canvas');
   previewOff.width = 960;
@@ -611,7 +612,7 @@ export function createTakes({ rig, toast, renderPose, pointsFor, isLive, onOpenC
     const t = active;
     const open = !!panel && !!t;
     for (const el of [film, feel, pill]) el.classList.toggle('hidden', !open);
-    cmd.classList.toggle('hidden', !open || !ROTATE[t?.sel] || playing || partsOpen);
+    cmd.classList.toggle('hidden', !open || !ROTATE[t?.sel] || playing || partsOpen || !!forcedPose);
     $('btnCam')?.classList.toggle('active', camOpen && !open);
     $('btnCam')?.classList.toggle('rig', open && t.mode === 'rig');
     if (!open) return;
@@ -658,6 +659,7 @@ export function createTakes({ rig, toast, renderPose, pointsFor, isLive, onOpenC
         ${statusHtml}
         <span class="fm-sp"></span>
         ${undoButtons(t)}
+        <button class="fm-btn" data-act="aifix" data-tip="Optional: scan this take and have the local AI repair broken joints">${icon('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>', 14)}Fix joints</button>
         <button class="fm-btn ${partsOpen ? 'on' : ''}" id="fmParts" data-act="parts" aria-pressed="${partsOpen}" data-tip="Pick any body part from a list, and see its settings">Parts</button>
         <button class="fm-btn done" data-act="close" data-tip="Back to the live character">Done</button>
       </div>
@@ -780,7 +782,8 @@ export function createTakes({ rig, toast, renderPose, pointsFor, isLive, onOpenC
       partsOpen = act === 'parts' ? !partsOpen : false;
       syncVisibility();
       renderPanel();
-    } else if (act === 'applyall') applyAll(t);
+    } else if (act === 'aifix') onAiFix?.();
+    else if (act === 'applyall') applyAll(t);
     else if (act === 'path') {
       pathOn = !pathOn;
       renderPanel();
@@ -1360,7 +1363,7 @@ export function createTakes({ rig, toast, renderPose, pointsFor, isLive, onOpenC
     }
     if (b.dataset.mode) return setMode(b.dataset.mode);
     if (b.dataset.tool) return setTool(b.dataset.tool);
-    if (['parts', 'partsclose', 'applyall', 'path', 'del', 'more', 'fewer', 'earlier', 'later'].includes(act)) return dockAction(act, t);
+    if (['aifix', 'parts', 'partsclose', 'applyall', 'path', 'del', 'more', 'fewer', 'earlier', 'later'].includes(act)) return dockAction(act, t);
     if (act === 'close') closePanel();
     else if (act === 'undo') step('undo');
     else if (act === 'redo') step('redo');
@@ -1801,6 +1804,7 @@ export function createTakes({ rig, toast, renderPose, pointsFor, isLive, onOpenC
         return { pose: sheet.raw[src] };
       }
       if (!panel || !active) return null;
+      if (forcedPose) return { pose: forcedPose }; // an AI scan is showing this drawing
       const t = active;
       if (panel === 'rig' && t.frames.length > 1 && !$('partPreview').classList.contains('hidden')) drawPreview(now);
       if (playing && t.frames.length > 1) {
@@ -1841,7 +1845,7 @@ export function createTakes({ rig, toast, renderPose, pointsFor, isLive, onOpenC
     // and the rotate circle around the selected part's joint.
     drawOverlay(ctx, P) {
       api.handles = null;
-      if (panel !== 'rig' || !active || !P || playing) return;
+      if (panel !== 'rig' || !active || !P || playing || forcedPose) return;
       lastCtx = ctx;
       const ids = new Set();
       const add = (id) => {
@@ -2026,6 +2030,13 @@ export function createTakes({ rig, toast, renderPose, pointsFor, isLive, onOpenC
     // Test hook: pose of the active take at time t ('before' or 'after').
     sample: (t, which = 'after') => (active ? poseAtTime(active, t, which) : null),
     openPanel,
+    // The 'after' poses of the open take, one per drawing, and a way to show one of them.
+    poses: () => (active ? posesFor(active, 'after') : []),
+    preview(pose) {
+      forcedPose = pose;
+      if (pose) playing = false;
+      renderDock(); // hides the Turn / Stretch pill while the AI works
+    },
     showTips,
     toggleCamera: () => $('btnCam').click(),
     get camOpen() {

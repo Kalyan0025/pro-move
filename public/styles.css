@@ -1137,3 +1137,21 @@ html, body { background: #1f1f21; }
 .tb-icon.active svg.glyph .fr { fill: var(--accent); }
 #btnActions.active svg.glyph { fill: #fff; }
 #btnActions.active svg.glyph .st { stroke: #fff; }
+
+/* ---------- Optional AI joint fix: progress card ---------- */
+.aifix {
+  position: fixed; left: 50%; bottom: 168px; transform: translateX(-50%); z-index: 27; display: flex; align-items: center; gap: 12px;
+  width: 420px; padding: 12px 14px 12px 14px; border-radius: 18px; background: var(--panel); box-shadow: 0 10px 30px rgba(0, 0, 0, .4);
+}
+.af-ico { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-strong); }
+.af-ico svg { width: 18px; height: 18px; fill: #fff; }
+.aifix:not(.hidden) .af-ico { animation: afPulse 1.6s ease-in-out infinite; }
+@keyframes afPulse { 50% { box-shadow: 0 0 0 7px rgba(30, 139, 255, .22); } }
+.af-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.af-text b { font-size: 14px; }
+.af-text small { font-size: 12px; line-height: 1.35; color: var(--text-dim); }
+.af-track { display: block; height: 4px; margin-top: 4px; border-radius: 2px; overflow: hidden; background: rgba(120, 120, 128, .3); }
+.af-track.hidden { display: none; }
+.af-track i { display: block; height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); transition: transform .35s ease; }
+.aifix .btn { flex: none; min-height: 44px; padding: 0 16px; }
+@media (prefers-reduced-motion: reduce) { .aifix:not(.hidden) .af-ico { animation: none; } }
