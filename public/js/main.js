@@ -1166,6 +1166,21 @@ $('btnNewChar').addEventListener('click', () => {
   closePopovers();
   onboarding.open({ tour: false });
 });
+// A hard refresh from inside the app (an iPad home-screen app has no reload button): save, drop the
+// service worker and its cached files, then load the page again from the server. Artworks and
+// settings live in IndexedDB and localStorage, which this leaves alone.
+$('btnHardRefresh').addEventListener('click', async () => {
+  closePopovers();
+  toast('Getting the latest version…', 4000);
+  try { await studio.saveNow(); } catch {}
+  try {
+    for (const r of (await navigator.serviceWorker?.getRegistrations()) || []) await r.unregister();
+    for (const k of (await caches?.keys()) || []) await caches.delete(k);
+  } catch {}
+  const url = new URL(location.href);
+  url.searchParams.set('fresh', Date.now());
+  location.replace(url.toString());
+});
 $('btnIntro').addEventListener('click', () => {
   closePopovers();
   onboarding.open({ tour: true });
