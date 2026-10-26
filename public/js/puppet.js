@@ -262,6 +262,8 @@ function cutAutomatically(img, J, torso, overlap = true, excluded = null) {
   const names = excluded ? DRAW_ORDER.filter((n) => !excluded.has(n)) : DRAW_ORDER;
   const body = bodyColumn(data, W, H, J, torso);
   const owner = new Int8Array(W * H).fill(-1);
+  // The rows where the trunk is: from just above the shoulders to the pelvis.
+  const armBand = [Math.min(J.shoulderR[1], J.shoulderL[1]) - torso * 0.3, J.pelvis[1] + torso * 0.1];
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
@@ -270,7 +272,12 @@ function cutAutomatically(img, J, torso, overlap = true, excluded = null) {
       let bestD = Infinity;
       names.forEach((n, k) => {
         const [a, b, r] = segs[n];
-        let d = distToSegment(x, y, a, b) - r * torso;
+        const dist = distToSegment(x, y, a, b);
+        // Something hanging at the side of the body (a bag, a belly line, a flap of jacket) is part of
+        // the body, not of an arm that happens to be the nearest bone. Within the trunk's rows an arm
+        // only takes what is close to it; the hands and sleeves are well inside that reach.
+        if (n !== 'hips' && (n.startsWith('upperArm') || n.startsWith('foreArm')) && dist > torso * 0.28 && y > armBand[0] && y < armBand[1]) return;
+        let d = dist - r * torso;
         // Pixels behind where a part starts belong to its parent: above the hips or inside the
         // armpit go to the body, and below the pelvis to the hips.
         if (n !== 'hips') {
