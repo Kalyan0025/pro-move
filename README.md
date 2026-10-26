@@ -292,3 +292,7 @@ Checked against a screen recording of Procreate on iPad.
 - **Colours**: History (with Clear) and the active palette sit under the picker on Disc, Classic, Harmony and Value.
 - **Share**: a Share layers group with PNG files, one per layer.
 - **Fixed**: tapping the brush tool you are already using did not open the Brush Library, because the tool-switch handler closed it straight away.
+
+### Things hanging at the body's side
+
+When a character is cut into parts, anything drawn beside the trunk (a bag, a belly or jacket line, a flap of cloth) stays with the body. An arm only takes pixels within about 0.28 of a torso length of its bone while it is level with the trunk, so a raised arm no longer drags a bag along with it. The bundled characters cut the same as before.
