@@ -62,7 +62,7 @@ The artist-facing flow, built for 2D animators and doodle artists rather than te
    - **Rotate circle**: a grey circle around the selected part's joint. Drag anywhere on the canvas to turn the part around that joint on the current frame; a shaded wedge shows how far. Children follow (turning the upper arm carries the forearm, turning the body carries head and arms). **Undo my bends on this frame** removes the changes.
    - **Animate / Rig** (like TVPaint's two modes): **Animate** (blue bones) changes only the current frame; **Rig** (amber bones) changes every frame of the take, for example making a forearm longer for the whole animation. **Undo my changes on this frame** and **Reset … on every frame** take them back.
    - **Turn / Stretch brush**: Turn rotates the selected part around its joint. Stretch makes an arm or leg (or one segment of it) longer or shorter: drag along the limb; a percentage shows while dragging (40% to 220%). The drawing stretches along the bone.
-   - **Joint balls**: round elbows, knees, shoulders and hips painted in the character's own colours (sampled from the drawing, with the same soft shading and grain). They are invisible in the pose as drawn and fade in as a joint bends or stretches, so the limb never looks broken. Switch them off in **Rig Lab › Deformation › Joint balls** to compare.
+   - **Joint balls** (off by default; switch on in Rig Lab › Deformation › Joint balls): round elbows, knees, shoulders and hips painted in the character's own colours (sampled from the drawing, with the same soft shading and grain). They are invisible in the pose as drawn and fade in as a joint bends or stretches, so the limb never looks broken. Switch them off in **Rig Lab › Deformation › Joint balls** to compare.
    - **In-betweens** stay a blend of the two frames they were made from, so they follow when you change those frames.
    - **Background and Transform**: the scene is a background layer (**Playground** in Layers, with Replace). The Transform tool (arrow in the top bar) shows a box around the character: drag to move it, drag a corner to resize it. This applies to the live character and every frame of every take, and is remembered.
    - **Clean-up** (Sketchy ↔ Clean) removes the wobble the camera picked up.
@@ -296,3 +296,13 @@ Checked against a screen recording of Procreate on iPad.
 ### Things hanging at the body's side
 
 When a character is cut into parts, anything drawn beside the trunk (a bag, a belly or jacket line, a flap of cloth) stays with the body. An arm only takes pixels within about 0.28 of a torso length of its bone while it is level with the trunk, so a raised arm no longer drags a bag along with it. The bundled characters cut the same as before.
+
+## Motion Memory and the wave comparison
+
+**Motion Memory (Actions › Rig › Paint a correction).** Pose the character so a joint breaks, tap the joint, and paint inside the dashed circle (colour, **Pick** a colour from the drawing, **Erase**, size). **Remember** stores the strokes with that joint's bend. Whenever the joint bends close to that angle again (within about 0.4 rad), the correction fades in and follows the parent bone, in live view, takes and exports. It uses the same store as the AI joint fixes (`correctives.js`); **Clear hand corrections** removes only the hand-painted ones. Code: `public/js/motionmemory.js`.
+
+**Wave comparison (Actions › Rig › Wave comparison).** Renders a 12-frame wave four ways: the **drawing** as drawn, a **rigid cutout** control (no blending), the **rigged mesh** (weighted skinning only) and the **corrected** result (shape preservation plus remembered corrections). Each frame is scored from its pixels at the joints that bend:
+- **Tearing**: share of the limb's centreline near the joint with no artwork, beyond what the drawing itself leaves empty there.
+- **Joint collapse**: how much of the artwork around the joint is missing compared with the drawing.
+
+**Copy results** gives CSV. The red beanie scores about 0% on both (its parts overlap); the line-art Beanie tears at the shoulder (about 9% in the rigged mesh), which is where a hand correction should show up as a lower corrected score. Console: `waveCompare.run(k)`, where `k` exaggerates the wave. Code: `public/js/wavecompare.js`.

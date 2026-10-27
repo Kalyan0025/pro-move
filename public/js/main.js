@@ -7,6 +7,8 @@ import { editJoints } from './editor.js';
 import { createTimeline } from './timeline.js';
 import { hingeLevels } from './comfy.js';
 import { createCorrectives } from './correctives.js';
+import { createMotionMemory } from './motionmemory.js';
+import { createWaveCompare } from './wavecompare.js';
 import { createRigCheck } from './rigcheck.js';
 import { FEELS } from './motion.js';
 import { drawRigView } from './rigview.js';
@@ -706,6 +708,7 @@ function viewForYaw(yaw, invert) {
   return { id: order[i], flip: !dir };
 }
 const correctives = createCorrectives();
+let lastShownPose = null; // the pose on the canvas right now (a take's frame, or the live rig)
 const jointBalls = createJointBalls();
 const jointDust = createJointDust(jointBalls);
 const sources = {}; // key → { def, img }, kept for rebuilding
@@ -727,7 +730,7 @@ function selectCharacter(next, { remember = true } = {}) {
   rig.recenter();
   cloth.reset();
   physics.reset();
-  correctives.load(choice === 'custom' && p ? `custom:${p.name}` : choice);
+  correctives.load(choice === 'custom' && p ? `custom:${p.name}` : choice).then(() => typeof syncMemoryUI === 'function' && syncMemoryUI());
 }
 for (const r of document.querySelectorAll('input[name="charChoice"]')) r.addEventListener('input', () => selectCharacter(r.value));
 
@@ -1257,6 +1260,11 @@ function registerViews(p, def) {
 
 // ---------- drawing the character ----------
 const thumbRenderer = createRenderer();
+// The wave comparison's "Corrected" row: the live deformation (shape preservation), minus cloth.
+const compareRenderer = createRenderer();
+compareRenderer.post = (puppet, piece, mesh, mats) => deform.apply(puppet, piece, mesh, mats, { method: 'mush', preserve: true, amount: physics.d.shape });
+const rigidRenderer = createRenderer();
+rigidRenderer.post = (puppet, piece, mesh, mats) => deform.apply(puppet, piece, mesh, mats, { method: 'rigid', preserve: false, amount: 0 });
 const basicCanvas = document.createElement('canvas');
 
 // Draw the character in the rig's current pose. Returns the solved joint positions.
@@ -1267,7 +1275,8 @@ function squashBegin(target, sq) {
   target.scale(sq.sx, sq.sy);
   target.translate(-sq.x, -sq.y);
 }
-function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = null, live = false } = {}) {
+// plain: only the skinned drawing, with no corrections, joint balls or dust (the wave comparison).
+function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = null, live = false, plain = false } = {}) {
   const scale = Number($('charScale').value) * mul;
   if (choice === 'doodle') {
     const P = rig.solve(W, fitH, scale * 1.2, shift);
@@ -1284,11 +1293,11 @@ function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = 
     const sq = live ? physics.squashFor(P) : null;
     if (sq) squashBegin(target, sq);
     drawPuppet(target, p, rig, P, r, alpha, view.flip);
-    if (alpha === 1 && view.id === 'front' && $('optCorrect').checked) correctives.draw(target, rig, P);
+    if (!plain && alpha === 1 && view.id === 'front' && $('optCorrect').checked) correctives.draw(target, rig, P);
     // Round, colour-matched joints that fade in as a joint bends or stretches.
-    if ($('labBalls')?.checked !== false) jointBalls.draw(target, p, rig, P, { alpha, flip: view.flip });
+    if (!plain && $('labBalls')?.checked) jointBalls.draw(target, p, rig, P, { alpha, flip: view.flip });
     // Optional: tiny dots in the character's own colours fill bent joints (off unless switched on).
-    if ($('optDust').checked) {
+    if (!plain && $('optDust').checked) {
       jointDust.draw(target, p, rig, P, { alpha, flip: view.flip, density: Number($('dustDensity').value), size: Number($('dustSize').value), time: performance.now() / 1000 });
     }
     if (sq) target.restore();
@@ -1518,6 +1527,89 @@ $('btnRigCheck').addEventListener('click', () => {
   if (state.source === 'none') toast('Start the camera (or the demo) so the check can see your poses.', 4000);
   rigCheck.start();
 });
+// ---------- Motion Memory: hand-painted corrections ----------
+const mm = createMotionMemory({
+  rig,
+  correctives,
+  stage,
+  getP: () => stageP,
+  getPose: () => lastShownPose || rig.getPose(),
+  toast,
+  onChange: () => syncMemoryUI(),
+});
+window.motionMemory = mm;
+
+// ---------- Wave comparison: 12 frames, drawing / rigged / corrected, scored ----------
+const waveCompare = createWaveCompare({
+  rig,
+  correctives,
+  toast,
+  render: (variant, target, W, H, pose) => {
+    const opts = { mul: 0.82 };
+    if (variant === 'drawing') return drawPose(target, W, H, pose, { ...opts, plain: true }, thumbRenderer);
+    if (variant === 'rigid') return drawPose(target, W, H, pose, { ...opts, plain: true }, rigidRenderer);
+    if (variant === 'rigged') return drawPose(target, W, H, pose, { ...opts, plain: true }, thumbRenderer);
+    return drawPose(target, W, H, pose, opts, compareRenderer);
+  },
+});
+window.waveCompare = waveCompare;
+$('btnWaveCompare').addEventListener('click', () => {
+  closePopovers();
+  if (!activePuppet()) return toast('Choose a drawn character first.');
+  waveCompare.show();
+});
+function syncMemoryUI() {
+  const bar = $('mmBar');
+  bar.classList.toggle('hidden', mm.phase === 'off');
+  $('mmTools').classList.toggle('hidden', mm.phase !== 'paint');
+  $('mmHint').textContent = mm.phase === 'pick' ? 'Tap the joint that breaks' : mm.phase === 'paint' ? 'Paint inside the circle' : '';
+  $('mmPick').classList.toggle('active', mm.pen.sample);
+  $('mmErase').classList.toggle('active', mm.pen.erase);
+  $('mmColour').value = mm.pen.color;
+  const n = correctives.handCount;
+  $('mmCount').textContent = n ? `${n} remembered` : 'Motion Memory';
+}
+$('btnMotionMemory').addEventListener('click', () => {
+  closePopovers();
+  if (!activePuppet()) return toast('Choose a drawn character first.');
+  mm.start();
+});
+$('btnClearMemory').addEventListener('click', () => {
+  correctives.clear({ hand: true });
+  syncMemoryUI();
+  toast('Hand corrections cleared for this character.');
+});
+$('mmColour').addEventListener('input', () => mm.setPen({ color: $('mmColour').value, sample: false }));
+$('mmPick').addEventListener('click', () => mm.setPen({ sample: !mm.pen.sample, erase: false }));
+$('mmErase').addEventListener('click', () => mm.setPen({ erase: !mm.pen.erase, sample: false }));
+$('mmSize').addEventListener('input', () => mm.setPen({ size: Number($('mmSize').value) }));
+$('mmDone').addEventListener('click', () => { mm.done(); syncMemoryUI(); });
+$('mmCancel').addEventListener('click', () => mm.cancel());
+let painting = false;
+screenEl.addEventListener('pointerdown', (e) => {
+  if (mm.phase === 'off' || !e.target.closest('#workspace')) return;
+  e.stopPropagation();
+  e.preventDefault();
+  if (mm.down(e)) {
+    painting = mm.phase === 'paint';
+    screenEl.setPointerCapture(e.pointerId);
+  }
+}, true);
+screenEl.addEventListener('pointermove', (e) => {
+  if (!painting) return;
+  e.stopPropagation();
+  mm.move(e);
+}, true);
+const endPaint = (e) => {
+  if (!painting) return;
+  e.stopPropagation();
+  painting = false;
+  mm.up();
+};
+screenEl.addEventListener('pointerup', endPaint, true);
+screenEl.addEventListener('pointercancel', endPaint, true);
+syncMemoryUI();
+
 $('btnClearFixes').addEventListener('click', () => {
   correctives.clear();
   toast('Joint fixes cleared for this character.');
@@ -1752,6 +1844,7 @@ function frame(now) {
   watchHold(now, dt, live);
   const takeShown = takes.tick(now);
   const shown = takeShown || timeline.tick(now, live);
+  lastShownPose = shown?.pose || null;
   const onion = takeShown ? takes.onionPose() : timeline.onionPose(live);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, stage.width, stage.height);
@@ -1777,6 +1870,7 @@ function frame(now) {
     P = drawCharacter(ctx, stage.width, stage.height, renderer, { ...placed, live: state.source !== 'none' });
   }
   stageP = P;
+  if (window.motionRig) window.motionRig.P = P; // for tests and the console
   if (!xform.classList.contains('hidden')) placeBox(P);
   if (takeShown) {
     takes.lastP = P;
@@ -1787,6 +1881,7 @@ function frame(now) {
   // Where the AI would repair this pose (joints bent far from the drawing).
   if (P && aiFix.running && shown?.pose) aiFix.draw(ctx, P, shown.pose, now);
   if (P && activePuppet() && $('tlShowGaps').checked) drawGapMarks(ctx, hingeLevels(shown?.pose || rig.getPose(), P, rig.rest));
+  mm.draw(ctx);
   if (recorder) flatten();
   requestAnimationFrame(frame);
 }

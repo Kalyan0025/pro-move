@@ -221,6 +221,9 @@
           <button class="row link" id="btnRigCheck">Run rig check<small>find and fix chops</small></button>
           <label class="row">Use AI joint fixes<input type="checkbox" class="switch" id="optCorrect" checked></label>
           <button class="row link" id="btnClearFixes">Clear joint fixes</button>
+          <button class="row link" id="btnMotionMemory">Paint a correction<small id="mmCount">Motion Memory</small></button>
+          <button class="row link" id="btnClearMemory">Clear hand corrections</button>
+          <button class="row link" id="btnWaveCompare">Wave comparison<small>12 frames, scored</small></button>
           <div class="row slider-row"><span>Hold for</span><output id="holdTimeOut"></output><input type="range" id="holdTime" min="0.5" max="3" step="0.1" value="1.2"></div>
         </div>
       </div>
@@ -594,6 +597,19 @@
   <button class="zoom-pill hidden" id="zoomPill" data-tip="Zoom. Tap to fit the canvas">100%</button>
   <button class="ui-show" id="uiShow" aria-label="Show the interface" data-tip="Bring the interface back"><svg viewBox="0 0 24 24"><path d="M5 9V5h4M19 9V5h-4M5 15v4h4M19 15v4h-4"/></svg></button>
 
+  <!-- Motion Memory: paint a fix on a joint; it comes back whenever the joint bends this far -->
+  <div class="mm-bar hidden" id="mmBar" role="toolbar" aria-label="Motion Memory">
+    <span class="mm-hint" id="mmHint"></span>
+    <span class="mm-tools" id="mmTools">
+      <input type="color" id="mmColour" value="#c8403a" aria-label="Brush colour" data-tip="Brush colour">
+      <button class="mm-btn" id="mmPick" data-tip="Tap the canvas to take a colour from the drawing">Pick</button>
+      <button class="mm-btn" id="mmErase" data-tip="Erase your strokes">Erase</button>
+      <input type="range" id="mmSize" min="2" max="40" value="10" aria-label="Brush size" data-tip="Brush size">
+      <button class="mm-btn mm-go" id="mmDone">Remember</button>
+    </span>
+    <button class="mm-btn" id="mmCancel">Cancel</button>
+  </div>
+
   <div class="toast hidden" id="toast"></div>
 
 </div>
@@ -638,7 +654,7 @@
     </div>
     <label class="row">Overlapping hidden artwork<input type="checkbox" class="switch" id="labOverlap" checked></label>
     <label class="row">Preserve rigid features<small>face, hands, shoes</small><input type="checkbox" class="switch" id="labPreserve" checked></label>
-    <label class="row">Joint balls<small>colour-matched, fade in when bent</small><input type="checkbox" class="switch" id="labBalls" checked></label>
+    <label class="row">Joint balls<small>colour-matched, fade in when bent</small><input type="checkbox" class="switch" id="labBalls"></label>
   </section>
 
   <section class="lab-sec">
