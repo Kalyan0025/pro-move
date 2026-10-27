@@ -8,6 +8,7 @@ import { createTimeline } from './timeline.js';
 import { hingeLevels } from './comfy.js';
 import { createCorrectives } from './correctives.js';
 import { createMotionMemory } from './motionmemory.js';
+import { createWaveCompare } from './wavecompare.js';
 import { createRigCheck } from './rigcheck.js';
 import { FEELS } from './motion.js';
 import { drawRigView } from './rigview.js';
@@ -1259,6 +1260,11 @@ function registerViews(p, def) {
 
 // ---------- drawing the character ----------
 const thumbRenderer = createRenderer();
+// The wave comparison's "Corrected" row: the live deformation (shape preservation), minus cloth.
+const compareRenderer = createRenderer();
+compareRenderer.post = (puppet, piece, mesh, mats) => deform.apply(puppet, piece, mesh, mats, { method: 'mush', preserve: true, amount: physics.d.shape });
+const rigidRenderer = createRenderer();
+rigidRenderer.post = (puppet, piece, mesh, mats) => deform.apply(puppet, piece, mesh, mats, { method: 'rigid', preserve: false, amount: 0 });
 const basicCanvas = document.createElement('canvas');
 
 // Draw the character in the rig's current pose. Returns the solved joint positions.
@@ -1269,7 +1275,8 @@ function squashBegin(target, sq) {
   target.scale(sq.sx, sq.sy);
   target.translate(-sq.x, -sq.y);
 }
-function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = null, live = false } = {}) {
+// plain: only the skinned drawing, with no corrections, joint balls or dust (the wave comparison).
+function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = null, live = false, plain = false } = {}) {
   const scale = Number($('charScale').value) * mul;
   if (choice === 'doodle') {
     const P = rig.solve(W, fitH, scale * 1.2, shift);
@@ -1286,11 +1293,11 @@ function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = 
     const sq = live ? physics.squashFor(P) : null;
     if (sq) squashBegin(target, sq);
     drawPuppet(target, p, rig, P, r, alpha, view.flip);
-    if (alpha === 1 && view.id === 'front' && $('optCorrect').checked) correctives.draw(target, rig, P);
+    if (!plain && alpha === 1 && view.id === 'front' && $('optCorrect').checked) correctives.draw(target, rig, P);
     // Round, colour-matched joints that fade in as a joint bends or stretches.
-    if ($('labBalls')?.checked !== false) jointBalls.draw(target, p, rig, P, { alpha, flip: view.flip });
+    if (!plain && $('labBalls')?.checked) jointBalls.draw(target, p, rig, P, { alpha, flip: view.flip });
     // Optional: tiny dots in the character's own colours fill bent joints (off unless switched on).
-    if ($('optDust').checked) {
+    if (!plain && $('optDust').checked) {
       jointDust.draw(target, p, rig, P, { alpha, flip: view.flip, density: Number($('dustDensity').value), size: Number($('dustSize').value), time: performance.now() / 1000 });
     }
     if (sq) target.restore();
@@ -1531,6 +1538,26 @@ const mm = createMotionMemory({
   onChange: () => syncMemoryUI(),
 });
 window.motionMemory = mm;
+
+// ---------- Wave comparison: 12 frames, drawing / rigged / corrected, scored ----------
+const waveCompare = createWaveCompare({
+  rig,
+  correctives,
+  toast,
+  render: (variant, target, W, H, pose) => {
+    const opts = { mul: 0.82 };
+    if (variant === 'drawing') return drawPose(target, W, H, pose, { ...opts, plain: true }, thumbRenderer);
+    if (variant === 'rigid') return drawPose(target, W, H, pose, { ...opts, plain: true }, rigidRenderer);
+    if (variant === 'rigged') return drawPose(target, W, H, pose, { ...opts, plain: true }, thumbRenderer);
+    return drawPose(target, W, H, pose, opts, compareRenderer);
+  },
+});
+window.waveCompare = waveCompare;
+$('btnWaveCompare').addEventListener('click', () => {
+  closePopovers();
+  if (!activePuppet()) return toast('Choose a drawn character first.');
+  waveCompare.show();
+});
 function syncMemoryUI() {
   const bar = $('mmBar');
   bar.classList.toggle('hidden', mm.phase === 'off');
