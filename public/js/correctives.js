@@ -24,6 +24,13 @@ export function createCorrectives() {
     get count() {
       return patches.length;
     },
+    get handCount() {
+      return patches.filter((p) => p.hand).length;
+    },
+    // The hand-painted corrections (Motion Memory), for the readout.
+    list() {
+      return patches.map(({ canvas, ...p }) => p);
+    },
     // Switch to the patches saved for a character.
     async load(key) {
       character = key;
@@ -44,8 +51,27 @@ export function createCorrectives() {
         patches.push({ ...p, canvas });
       }
     },
-    clear() {
-      patches = [];
+    // hand: true removes only the hand-painted corrections (Motion Memory), keeping the AI repairs.
+    clear({ hand = false } = {}) {
+      patches = hand ? patches.filter((p) => !p.hand) : [];
+      save();
+    },
+
+    // A correction painted by hand at one bend of one joint. paint: a canvas the size of the stage
+    // holding the strokes; hinge: { joint, child, parent, bend, x, y, r } from hingeLevels.
+    addHand(paint, hinge, P, pose) {
+      const x0 = Math.max(0, Math.floor(hinge.x - hinge.r)), y0 = Math.max(0, Math.floor(hinge.y - hinge.r));
+      const size = Math.ceil(hinge.r * 2);
+      const c = document.createElement('canvas');
+      c.width = size;
+      c.height = size;
+      c.getContext('2d').drawImage(paint, -x0, -y0);
+      // Painting the same joint at about the same bend again replaces the earlier correction.
+      patches = patches.filter((p) => !(p.joint === hinge.joint && Math.abs(p.bend - hinge.bend) < MATCH * 0.5 && p.hand));
+      patches.push({
+        joint: hinge.joint, child: hinge.child, parent: hinge.parent, bend: hinge.bend, hand: true,
+        ax: hinge.x, ay: hinge.y, x0, y0, T: P.T, parentAngle: pose.angle[hinge.parent], canvas: c,
+      });
       save();
     },
 

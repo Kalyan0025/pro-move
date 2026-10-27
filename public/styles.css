@@ -1155,3 +1155,13 @@ html, body { background: #1f1f21; }
 .af-track i { display: block; height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); transition: transform .35s ease; }
 .aifix .btn { flex: none; min-height: 44px; padding: 0 16px; }
 @media (prefers-reduced-motion: reduce) { .aifix:not(.hidden) .af-ico { animation: none; } }
+
+/* Motion Memory bar */
+.mm-bar { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 14px; background: var(--panel); color: var(--text); font-size: 13px; box-shadow: 0 6px 24px rgba(0,0,0,.35); max-width: calc(100% - 32px); flex-wrap: wrap; justify-content: center; }
+.mm-tools { display: flex; align-items: center; gap: 8px; }
+.mm-tools.hidden { display: none; }
+.mm-bar input[type=color] { width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: none; }
+.mm-bar input[type=range] { width: 90px; }
+.mm-btn { min-height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--tool-circle); color: var(--text); font: inherit; cursor: pointer; }
+.mm-btn.active { background: var(--accent-strong); color: #fff; }
+.mm-go { background: var(--accent-strong); color: #fff; }
