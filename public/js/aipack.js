@@ -194,7 +194,7 @@ function crc32(data) {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-function zip(files) {
+export function zip(files) {
   const enc = new TextEncoder();
   const chunks = [];
   const central = [];

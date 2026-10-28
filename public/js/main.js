@@ -7,6 +7,8 @@ import { editJoints } from './editor.js';
 import { createTimeline } from './timeline.js';
 import { hingeLevels } from './comfy.js';
 import { createCorrectives } from './correctives.js';
+import { createMemory, createMemoryUI } from './memory.js';
+import { createWaveTest } from './wavetest.js';
 import { createRigCheck } from './rigcheck.js';
 import { FEELS } from './motion.js';
 import { drawRigView } from './rigview.js';
@@ -706,6 +708,8 @@ function viewForYaw(yaw, invert) {
   return { id: order[i], flip: !dir };
 }
 const correctives = createCorrectives();
+const memory = createMemory({ rig, stage, getP: () => stageP, getColour: () => painter.color, toast });
+window.memory = memory;
 const jointBalls = createJointBalls();
 const jointDust = createJointDust(jointBalls);
 const sources = {}; // key → { def, img }, kept for rebuilding
@@ -728,6 +732,7 @@ function selectCharacter(next, { remember = true } = {}) {
   cloth.reset();
   physics.reset();
   correctives.load(choice === 'custom' && p ? `custom:${p.name}` : choice);
+  memory.load(choice === 'custom' && p ? `custom:${p.name}` : choice);
 }
 for (const r of document.querySelectorAll('input[name="charChoice"]')) r.addEventListener('input', () => selectCharacter(r.value));
 
@@ -902,6 +907,14 @@ $('btnAdjust').addEventListener('click', () => {
   togglePopover(adjust.menu);
 });
 createPhysicsUI({ physics, toast });
+createMemoryUI({ memory, actionsPanel: closePopovers });
+const waveTest = createWaveTest({
+  rig, memory, toast,
+  getPuppet: () => (choice === 'doodle' || choice === 'basic' ? null : activePuppet()),
+  render: (target, W, H, pose, opts) => drawPose(target, W, H, pose, opts, thumbRenderer),
+});
+window.waveTest = waveTest;
+document.addEventListener('close-popovers', closePopovers);
 const actions = createActions({
   studio, painter, selection, toast, stage, bgImage: () => bgImage,
   getColour: () => painter.color, closePopovers,
@@ -1267,7 +1280,7 @@ function squashBegin(target, sq) {
   target.scale(sq.sx, sq.sy);
   target.translate(-sq.x, -sq.y);
 }
-function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = null, live = false } = {}) {
+function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = null, live = false, plain = false } = {}) {
   const scale = Number($('charScale').value) * mul;
   if (choice === 'doodle') {
     const P = rig.solve(W, fitH, scale * 1.2, shift);
@@ -1284,11 +1297,13 @@ function drawCharacter(target, W, H, r, { mul = 1, alpha = 1, fitH = H, shift = 
     const sq = live ? physics.squashFor(P) : null;
     if (sq) squashBegin(target, sq);
     drawPuppet(target, p, rig, P, r, alpha, view.flip);
-    if (alpha === 1 && view.id === 'front' && $('optCorrect').checked) correctives.draw(target, rig, P);
+    if (!plain && alpha === 1 && view.id === 'front' && $('optCorrect').checked) correctives.draw(target, rig, P);
+    // The artist's own remembered corrections, blended by how near the limb is to the pose they were made in.
+    if (!plain && alpha === 1 && view.id === 'front') memory.draw(target, rig.getPose(), P, sq);
     // Round, colour-matched joints that fade in as a joint bends or stretches.
-    if ($('labBalls')?.checked !== false) jointBalls.draw(target, p, rig, P, { alpha, flip: view.flip });
+    if (!plain && $('labBalls')?.checked !== false) jointBalls.draw(target, p, rig, P, { alpha, flip: view.flip });
     // Optional: tiny dots in the character's own colours fill bent joints (off unless switched on).
-    if ($('optDust').checked) {
+    if (!plain && $('optDust').checked) {
       jointDust.draw(target, p, rig, P, { alpha, flip: view.flip, density: Number($('dustDensity').value), size: Number($('dustSize').value), time: performance.now() / 1000 });
     }
     if (sq) target.restore();

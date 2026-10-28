@@ -296,3 +296,11 @@ Checked against a screen recording of Procreate on iPad.
 ### Things hanging at the body's side
 
 When a character is cut into parts, anything drawn beside the trunk (a bag, a belly or jacket line, a flap of cloth) stays with the body. An arm only takes pixels within about 0.28 of a torso length of its bone while it is level with the trunk, so a raised arm no longer drags a bag along with it. The bundled characters cut the same as before.
+
+## Motion Memory and the wave test
+
+**Motion Memory** (Actions › Rig › Memory). Freeze the character where it looks wrong, paint over the problem and tap Remember. The painted patch is kept with the pose of that limb and follows its bone. Near the same pose it fades back in; between two remembered poses the patches cross-fade (their weights for one limb add up to at most 1). "How near the pose" sets how far, in degrees, a correction reaches, and Strength scales it. Corrections are saved per character on this device. Nothing is generated: the patch is the artist's own painting. It applies to the front view only, like the AI patches.
+
+**Wave test** (Memory › Wave test…). The character waves for twelve frames, shown three ways: the drawing, the rigged mesh with its mesh drawn over it, and the corrected result (joint covers, dust, AI patches, Motion Memory). Under each frame: how many separate pieces the character is in (more than one is a tear) and how far its area is from the drawing at rest, measured on a small copy. Save PNG frames downloads the corrected frames as a zip of transparent PNGs.
+
+Not built yet: inverse kinematics, an editable curve graph, and one timeline for drawings, motion and physics.
