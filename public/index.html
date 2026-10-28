@@ -195,6 +195,7 @@
         <button class="seg-btn active" data-sub="capture">Capture</button>
         <button class="seg-btn" data-sub="character">Character</button>
         <button class="seg-btn" data-sub="physics">Physics</button>
+        <button class="seg-btn" data-sub="memory">Memory</button>
         <button class="seg-btn" data-sub="joints">Joints</button>
       </nav>
 
@@ -268,6 +269,19 @@
           <label class="row">Joint limits<small>elbows, knees and head fold only so far</small><input type="checkbox" class="switch" id="phLimits" checked></label>
         </div>
         <button class="btn" id="phCopy" style="margin:8px 14px 4px;width:calc(100% - 28px)">Copy physics configuration</button>
+      </div>
+
+      <div class="sub hidden" data-subpane="memory">
+        <div class="group-title">Motion Memory</div>
+        <p class="hint">Fix a pose by hand once. The correction follows the limb and comes back, blended, whenever the limb is near that pose again.</p>
+        <button class="btn" id="memTeach" style="margin:4px 14px 8px;width:calc(100% - 28px)">Teach a correction</button>
+        <div class="group" id="memList"></div>
+        <div class="group">
+          <label class="row">Use remembered corrections<input type="checkbox" class="switch" id="memOn" checked></label>
+          <div class="row slider-row"><span>How near the pose</span><output id="memRadiusOut"></output><input type="range" id="memRadius" min="10" max="120" step="1"></div>
+          <div class="row slider-row"><span>Strength</span><output id="memStrengthOut"></output><input type="range" id="memStrength" min="0" max="100" step="1"></div>
+        </div>
+        <div class="btn-row"><button class="btn" id="memClear">Forget all</button><button class="btn" id="btnWaveTest">Wave test…</button></div>
       </div>
 
       <div class="sub hidden" data-subpane="joints">
@@ -392,6 +406,14 @@
   </section>
 
   <!-- ============ Joint editor ============ -->
+  <section class="sheet hidden" id="waveSheet" role="dialog" aria-label="Wave test">
+    <header class="sheet-bar">
+      <span class="sheet-title">Wave test: 12 frames</span>
+      <span class="bs-actions"><button class="tl-text" id="wtRerun">Run again</button><button class="tl-text" id="wtExport">Save PNG frames</button><button class="tl-text tl-add" id="wtClose">Done</button></span>
+    </header>
+    <div class="wt-wrap"><div class="wt-summary" id="wtSummary"></div><div class="wt-body" id="wtBody"></div></div>
+  </section>
+
   <section class="sheet hidden" id="jointEditor">
     <header class="sheet-bar">
       <button class="tl-text" id="jeCancel">Cancel</button>
